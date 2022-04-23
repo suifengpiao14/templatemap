@@ -15,7 +15,10 @@ func TestAddTemplateByDir(t *testing.T) {
 	}
 
 	volume := Volume{
-		"APIIDList": []int{1, 3, 4},
+		"APIIDList":     []int{1, 3, 4},
+		DB_PROVIDER_KEY: DBProviderFunc(DBProvider),
+		"PageIndex":     "3",
+		"PageSize":      "20",
 	}
 	out, err := r.ExecuteTemplate("PaginateTotal", &volume)
 	if err != nil {
@@ -23,4 +26,15 @@ func TestAddTemplateByDir(t *testing.T) {
 	}
 	fmt.Println(out)
 	fmt.Println(volume)
+}
+
+func DBProvider(dbID string, sql string) (interface{}, error) {
+	out := []map[string]interface{}{
+		{
+			"ID":   1,
+			"Name": "张三",
+			"Age":  23,
+		},
+	}
+	return out, nil
 }

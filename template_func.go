@@ -7,8 +7,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"goa.design/goa/v3/codegen"
+	gormLogger "gorm.io/gorm/logger"
 )
 
 var TemplatefuncMap = template.FuncMap{
@@ -24,9 +26,27 @@ var TemplatefuncMap = template.FuncMap{
 	"executeTemplate": ExecuteTemplate,
 	"setValue":        SetValue,
 	"getValue":        GetValue,
+	"toSQL":           ToSQL,
+	"execSQL":         ExecSQL,
 }
 
 const IN_INDEX = "__inIndex"
+const DB_PROVIDER_KEY = "__dbProvidor" // 数据库执行器
+
+type DBProvidorInterface interface {
+	Exec(DBIdentifier string, sql string) (interface{}, error)
+}
+
+type DBProviderFunc func(DBIdentifier string, sql string) (interface{}, error)
+
+func (f DBProviderFunc) Exec(DBIdentifier string, sql string) (interface{}, error) {
+	// 调用f函数本体
+	return f(DBIdentifier, sql)
+}
+
+func Add() {
+
+}
 
 func ZeroTime(volume VolumeInterface) (string, error) {
 	named := "ZeroTime"
@@ -147,4 +167,104 @@ func GetValue(volume VolumeInterface, key string) interface{} {
 	var value interface{}
 	volume.GetValue(key, &value)
 	return value
+}
+
+func ExecSQL(volume Volume, DBIdentifier string, sql string) (interface{}, error) {
+	var dbProvidor DBProvidorInterface
+	ok := volume.GetValue(DB_PROVIDER_KEY, &dbProvidor)
+	if !ok {
+		err := errors.Errorf("not found db providor by identifier: %s", DBIdentifier)
+		return nil, err
+	}
+	out, err := dbProvidor.Exec(DBIdentifier, sql)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func ToSQL(volume VolumeInterface, namedSQL string) (string, error) {
+	data, err := getNamedData(volume)
+	if err != nil {
+		return "", err
+	}
+	statment, arguments, err := sqlx.Named(namedSQL, data)
+	if err != nil {
+		err = errors.WithStack(err)
+		return "", err
+	}
+	sql := gormLogger.ExplainSQL(statment, nil, `'`, arguments...)
+	return sql, nil
+}
+
+func getNamedData(data interface{}) (out map[string]interface{}, err error) {
+	out = make(map[string]interface{})
+	if data == nil {
+		return
+	}
+	dataI, ok := data.(*interface{})
+	if ok {
+		data = *dataI
+	}
+	mapOut, ok := data.(map[string]interface{})
+	if ok {
+		out = mapOut
+		return
+	}
+	mapOutRef, ok := data.(*map[string]interface{})
+	if ok {
+		out = *mapOutRef
+		return
+	}
+	if mapOut, ok := data.(Volume); ok {
+		out = mapOut
+		return
+	}
+	if mapOutRef, ok := data.(*Volume); ok {
+		out = *mapOutRef
+		return
+	}
+
+	v := reflect.Indirect(reflect.ValueOf(data))
+
+	if v.Kind() != reflect.Struct {
+		return
+	}
+	vt := v.Type()
+	// 提取结构体field字段
+	fieldNum := v.NumField()
+	for i := 0; i < fieldNum; i++ {
+		fv := v.Field(i)
+		ft := fv.Type()
+		fname := vt.Field(i).Name
+		if fv.Kind() == reflect.Ptr {
+			fv = fv.Elem()
+			ft = fv.Type()
+		}
+		ftk := ft.Kind()
+		switch ftk {
+		case reflect.Int:
+			out[fname] = fv.Int()
+		case reflect.Int64:
+			out[fname] = int64(fv.Int())
+		case reflect.Float64:
+			out[fname] = fv.Float()
+		case reflect.String:
+			out[fname] = fv.String()
+		case reflect.Struct, reflect.Map:
+			subOut, err := getNamedData(fv.Interface())
+			if err != nil {
+				return out, err
+			}
+			for k, v := range subOut {
+				if _, ok := out[k]; !ok {
+					out[k] = v
+				}
+			}
+
+		default:
+			out[fname] = fv.Interface()
+		}
+	}
+	return
 }

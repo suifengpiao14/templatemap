@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig"
 	"github.com/pkg/errors"
 )
 
@@ -105,7 +106,7 @@ type repository struct {
 
 func NewRepository(funcMap template.FuncMap) RepositoryInterface {
 	return &repository{
-		template: template.New("").Funcs(funcMap),
+		template: template.New("").Funcs(funcMap).Funcs(sprig.TxtFuncMap()),
 	}
 }
 

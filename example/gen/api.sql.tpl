@@ -7,14 +7,29 @@ select * from `api` where `api_id` in ({{in . .APIIDList}})  and `deleted_at` is
 {{define "PaginateWhere"}}
 {{end}}
 
+
 {{define "PaginateTotal"}}
 select count(*) as `count` from `api` where 1=1 {{template "PaginateWhere" .}} and `deleted_at` is null;
-{{setValue . "Offset" (mul .PageIndex  .PageSize)}}
-{{setValue . "Limit" .PageSize}}
-{{ $list:=executeTemplate . "GetAllByAPIIDList"| toSQL . | execSQL . "db_identifier"}}
-{{if $list}}
-{{setValue . "GetAllByAPIIDList" $list}}
-{{$list}}
 {{end}}
 
+
+
+
+{{define "Paginate"}}
+select * from `api` where 1=1 {{template "PaginateWhere" .}} and `deleted_at` is null limit :Offset,:Limit ;
 {{end}}
+
+
+
+{{define "getPaginate"}}
+{{$total:=executeTemplate . "PaginateTotal"|toSQL . | exec . "docapi_db2"}}
+{{setValue . "pagination.total" $total}}
+{{if $total}}
+    {{setValue . "Offset" (mul .PageIndex  .PageSize)}}
+    {{setValue . "Limit" (atoi .PageSize)}}
+    {{executeTemplate . "Paginate"|toSQL . | exec . "docapi_db2"|setValue . "items"}}
+{{end}}
+   
+
+{{end}}
+

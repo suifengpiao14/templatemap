@@ -20,7 +20,6 @@ const (
 type VolumeInterface interface {
 	SetValue(key string, value interface{})
 	GetValue(key string, value interface{}) (ok bool)
-	GetDynamicValus() (values map[string]interface{})
 }
 
 type Volume map[string]interface{}
@@ -71,25 +70,15 @@ func (v *Volume) GetValue(key string, value interface{}) bool {
 	panic("can not set value")
 }
 
-func (v *Volume) GetDynamicValus() (values map[string]interface{}) {
-	v.init()
-	return *v
+type ExecproviderInterface interface {
+	Exec(identifier string, s string) (string, error)
 }
 
-type TempalteMetaInterface interface {
-	TplName() string
-	TplType() string // 返回 TPL_DEFINE_TYPE 类型，方便后续根据类型获取资源(db、curl) 自动获取数据
-}
-type TemplateMeta struct {
-	tplName string
-	tplType string
-}
+type ExecProviderFunc func(identifier string, s string) (string, error)
 
-func (tm *TemplateMeta) TplName() string {
-	return tm.tplName
-}
-func (tm *TemplateMeta) TplType() string {
-	return tm.tplType
+func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
+	// 调用f函数本体
+	return f(identifier, s)
 }
 
 type RepositoryInterface interface {
@@ -98,23 +87,34 @@ type RepositoryInterface interface {
 	AddTemplateByStr(name string, s string) (err error)
 	GetTemplate() *template.Template
 	ExecuteTemplate(name string, volume VolumeInterface) (string, error)
+	RegisterProvider(identifier string, provider ExecproviderInterface)
+	GetProvider(identifier string) (ExecproviderInterface, bool)
 }
 
 type repository struct {
-	template *template.Template
+	template     *template.Template
+	providerPool map[string]ExecproviderInterface
 }
 
-func NewRepository(funcMap template.FuncMap) RepositoryInterface {
-	return &repository{
-		template: template.New("").Funcs(funcMap).Funcs(sprig.TxtFuncMap()),
+func NewRepository() RepositoryInterface {
+	r := &repository{
+		template:     template.New("").Funcs(CoreFuncMap).Funcs(TemplatefuncMap).Funcs(sprig.TxtFuncMap()),
+		providerPool: make(map[string]ExecproviderInterface),
 	}
+	return r
+}
+
+func (r *repository) RegisterProvider(identifier string, provider ExecproviderInterface) {
+	r.providerPool[identifier] = provider
+}
+
+func (r *repository) GetProvider(identifier string) (ExecproviderInterface, bool) {
+	provider, ok := r.providerPool[identifier]
+	return provider, ok
 }
 
 func (r *repository) GetTemplate() *template.Template {
 	return r.template
-}
-func (r *repository) Delims(left string, right string) {
-	r.template = r.template.Delims(left, right)
 }
 
 func (r *repository) AddTemplateByDir(dir string) (err error) {

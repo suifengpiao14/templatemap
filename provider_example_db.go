@@ -14,8 +14,6 @@ import (
 
 var DriverName = "mysql"
 
-var DB_SOURCE = ""
-
 const (
 	SQL_TYPE_SELECT = "SELECT"
 	SQL_TYPE_OTHER  = "OTHER"

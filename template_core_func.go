@@ -7,6 +7,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	gormLogger "gorm.io/gorm/logger"
 )
 
@@ -16,6 +18,10 @@ var CoreFuncMap = template.FuncMap{
 	"getValue":        GetValue,
 	"toSQL":           ToSQL,
 	"exec":            Exec,
+	"execSQLTpl":      ExecSQLTpl,
+	"gjsonGet":        gjson.Get,
+	"sjsonSet":        sjson.Set,
+	"sjsonSetRaw":     sjson.SetRaw,
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -149,4 +155,22 @@ func getNamedData(data interface{}) (out map[string]interface{}, err error) {
 		}
 	}
 	return
+}
+
+func ExecSQLTpl(volume VolumeInterface, templateName string, dbIdentifier string, storeKey string) (string, error) {
+	//{{executeTemplate . "Paginate"|toSQL . | exec . "docapi_db2"|setValue . "items"}}
+	tplOut, err := ExecuteTemplate(volume, templateName)
+	if err != nil {
+		return "", err
+	}
+	sql, err := ToSQL(volume, tplOut)
+	if err != nil {
+		return "", err
+	}
+	out, err := Exec(volume, dbIdentifier, sql)
+	if err != nil {
+		return "", err
+	}
+	volume.SetValue(storeKey, out)
+	return out, nil
 }

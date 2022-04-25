@@ -23,6 +23,8 @@ const (
 	HTTP_HEAD_BODY_DELIM = EOF + EOF
 )
 
+var CURL_TIMEOUT = 30 * time.Millisecond
+
 type RequestData struct {
 	URL     string         `json:"url"`
 	Method  string         `json:"method"`
@@ -78,8 +80,10 @@ func CURlProvider(identifier string, httpRaw string) (string, error) {
 		return "", err
 	}
 	// 3 分钟超时
-	ctx, _ := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), CURL_TIMEOUT)
+
 	req, err := http.NewRequestWithContext(ctx, reqData.Method, reqData.URL, bytes.NewReader([]byte(reqData.Body)))
+	cancel()
 	if err != nil {
 		return "", err
 	}

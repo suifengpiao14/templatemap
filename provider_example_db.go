@@ -12,8 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var dbMap map[string]*sqlx.DB
-var dbOnce sync.Once
 var DriverName = "mysql"
 
 var DB_SOURCE = ""
@@ -41,7 +39,7 @@ func (p *DBExecProvider) GetDb() *sqlx.DB {
 			err := errors.Errorf("DBExecProvider %#v DNS is null ", p)
 			panic(err)
 		}
-		dbOnce.Do(func() {
+		p.dbOnce.Do(func() {
 			db, err := sqlx.Open(DriverName, p.DSN)
 			if err != nil {
 				panic(err)

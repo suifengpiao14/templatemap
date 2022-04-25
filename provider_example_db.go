@@ -121,6 +121,13 @@ func dbProvider(p *DBExecProvider, sqls string) (string, error) {
 
 	var jsonByte []byte
 	if len(allResult) == 1 {
+		result := allResult[0]
+		if len(result) == 1 && len(result[0]) == 1 {
+			row := result[0]
+			for _, val := range row {
+				return val, nil // 只有一个值时，直接返回值本身
+			}
+		}
 		jsonByte, err = json.Marshal(allResult[0])
 		if err != nil {
 			return "", err

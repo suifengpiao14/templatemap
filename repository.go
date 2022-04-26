@@ -10,6 +10,7 @@ import (
 
 	"github.com/Masterminds/sprig"
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -42,18 +43,63 @@ func (v *Volume) SetValue(key string, value interface{}) {
 func (v *Volume) GetValue(key string, value interface{}) bool {
 	v.init()
 
-	tmp, ok := (*v)[key]
+	tmp, ok := getValue(v, key)
 	if !ok {
 		return false
 	}
-	rv := reflect.ValueOf(value)
+	ok = convertType(value, tmp)
+	if !ok {
+		return false
+	}
+	return true
+
+}
+
+func getValue(v *Volume, key string) (interface{}, bool) {
+	var mapKey string
+	var jsonKey string
+	var value interface{}
+	var ok bool
+	mapKey = key
+	for {
+		value, ok = (*v)[mapKey]
+		if ok {
+			break
+		}
+		lastIndex := strings.LastIndex(mapKey, ".")
+		if lastIndex > -1 {
+			mapKey = mapKey[:lastIndex]
+			continue
+		}
+		break
+	}
+	if mapKey == key {
+		return value, ok
+	}
+	// json key 获取值
+	jsonKey = key[len(mapKey)+1:]
+	jsonStr, ok := value.(string)
+	if !ok {
+		return nil, false
+	}
+	if !gjson.Valid(jsonStr) {
+		return nil, false
+	}
+	jsonValue := gjson.Get(jsonStr, jsonKey).Value()
+	return jsonValue, true
+}
+
+func convertType(dst interface{}, src interface{}) bool {
+	if src == nil || dst == nil {
+		return false
+	}
+	rv := reflect.ValueOf(dst)
 	if rv.Kind() == reflect.Ptr && rv.Elem().Kind() == reflect.Interface { // value 为 interface  指针时，使用 rv.Elem()
 		rv = rv.Elem()
 	}
 	rvT := rv.Type()
-	rTmp := reflect.ValueOf(tmp)
-	fmt.Println(rvT.Name())
-	ok = rTmp.CanConvert(rvT)
+	rTmp := reflect.ValueOf(src)
+	ok := rTmp.CanConvert(rvT)
 	if !ok {
 		return false
 	}
@@ -67,7 +113,7 @@ func (v *Volume) GetValue(key string, value interface{}) bool {
 		rv.Elem().Set(val.Elem())
 		return true
 	}
-	panic("can not set value")
+	panic("can not get value")
 }
 
 type ExecproviderInterface interface {

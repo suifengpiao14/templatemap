@@ -15,14 +15,18 @@ import (
 var DriverName = "mysql"
 
 const (
-	SQL_TYPE_SELECT = "SELECT"
-	SQL_TYPE_OTHER  = "OTHER"
+	SQL_TYPE_SELECT     = "SELECT"
+	SQL_TYPE_OTHER      = "OTHER"
+	SQL_LOG_LEVEL_DEBUG = "debug"
+	SQL_LOG_LEVEL_INFO  = "info"
+	SQL_LOG_LEVEL_ERROR = "error"
 )
 
 type DBExecProvider struct {
-	DSN    string
-	db     *sqlx.DB
-	dbOnce sync.Once
+	DSN      string
+	logLevel string
+	db       *sqlx.DB
+	dbOnce   sync.Once
 }
 
 func (p *DBExecProvider) Exec(identifier string, s string) (string, error) {
@@ -69,7 +73,9 @@ func dbProvider(p *DBExecProvider, sqls string) (string, error) {
 	sqls = StandardizeSpaces(TrimSpaces(sqls)) // 格式化sql语句
 	sqlType := SQLType(sqls)
 	db := p.GetDb()
-	fmt.Println(sqls)
+	if p.logLevel == SQL_LOG_LEVEL_DEBUG {
+		fmt.Println(sqls)
+	}
 	if sqlType != SQL_TYPE_SELECT {
 		res, err := db.Exec(sqls)
 		if err != nil {

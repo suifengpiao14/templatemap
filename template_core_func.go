@@ -1,6 +1,8 @@
 package templatemap
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"text/template"
@@ -22,6 +24,7 @@ var CoreFuncMap = template.FuncMap{
 	"gjsonGet":        gjson.Get,
 	"sjsonSet":        sjson.Set,
 	"sjsonSetRaw":     sjson.SetRaw,
+	"transfer":        Transfer,
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -157,20 +160,59 @@ func getNamedData(data interface{}) (out map[string]interface{}, err error) {
 	return
 }
 
-func ExecSQLTpl(volume VolumeInterface, templateName string, dbIdentifier string, storeKey string) (string, error) {
-	//{{executeTemplate . "Paginate"|toSQL . | exec . "docapi_db2"|setValue . "items"}}
+func ExecSQLTpl(volume VolumeInterface, templateName string, dbIdentifier string) error {
+	//{{executeTemplate . "Paginate"|toSQL . | exec . "docapi_db2"|setValue . }}
 	tplOut, err := ExecuteTemplate(volume, templateName)
 	if err != nil {
-		return "", err
+		return err
 	}
 	sql, err := ToSQL(volume, tplOut)
 	if err != nil {
-		return "", err
+		return err
 	}
 	out, err := Exec(volume, dbIdentifier, sql)
 	if err != nil {
-		return "", err
+		return err
 	}
+	storeKey := fmt.Sprintf("%sOut", templateName)
 	volume.SetValue(storeKey, out)
+	return nil
+}
+
+func Transfer(volume Volume, dstSchema string) (interface{}, error) {
+	return nil, nil
+}
+
+func JsonSchema2Path(jsonschema string) (TransferPaths, error) {
+	out := make(TransferPaths, 0)
+	var schema Schema
+	err := json.Unmarshal([]byte(jsonschema), &schema)
+	if err != nil {
+		return nil, err
+	}
+	schema.Init()
+	out = schema.GetTransferPaths()
+
+	return out, nil
+
+}
+
+func TransferData(volume VolumeInterface, transferPaths TransferPaths) (string, error) {
+	out := ""
+	for _, tp := range transferPaths {
+		var v interface{}
+		var err error
+		ok := volume.GetValue(tp.Src, &v)
+		if !ok {
+			err := errors.Errorf("not found %s data from volume %#v", tp.Src, volume)
+			return "", err
+		}
+		path := strings.ReplaceAll(tp.Dst, "#", "-1")
+		out, err = sjson.Set(out, path, v)
+		if err != nil {
+			err = errors.WithStack(err)
+			return "", err
+		}
+	}
 	return out, nil
 }

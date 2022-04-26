@@ -48,10 +48,7 @@ func (v *Volume) GetValue(key string, value interface{}) bool {
 		return false
 	}
 	ok = convertType(value, tmp)
-	if !ok {
-		return false
-	}
-	return true
+	return ok
 
 }
 

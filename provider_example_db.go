@@ -1,6 +1,7 @@
 package templatemap
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -8,7 +9,6 @@ import (
 	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -25,7 +25,7 @@ const (
 type DBExecProvider struct {
 	DSN      string
 	logLevel string
-	db       *sqlx.DB
+	db       *sql.DB
 	dbOnce   sync.Once
 }
 
@@ -34,7 +34,7 @@ func (p *DBExecProvider) Exec(identifier string, s string) (string, error) {
 }
 
 // GetDb is a signal DB
-func (p *DBExecProvider) GetDb() *sqlx.DB {
+func (p *DBExecProvider) GetDb() *sql.DB {
 	if p.db == nil {
 
 		if p.DSN == "" {
@@ -42,7 +42,7 @@ func (p *DBExecProvider) GetDb() *sqlx.DB {
 			panic(err)
 		}
 		p.dbOnce.Do(func() {
-			db, err := sqlx.Open(DriverName, p.DSN)
+			db, err := sql.Open(DriverName, p.DSN)
 			if err != nil {
 				panic(err)
 			}
@@ -88,7 +88,7 @@ func dbProvider(p *DBExecProvider, sqls string) (string, error) {
 		rowsAffected, _ := res.RowsAffected()
 		return strconv.FormatInt(rowsAffected, 10), nil
 	}
-	rows, err := db.Queryx(sqls)
+	rows, err := db.Query(sqls)
 	if err != nil {
 		return "", err
 	}
@@ -104,7 +104,7 @@ func dbProvider(p *DBExecProvider, sqls string) (string, error) {
 		for rows.Next() {
 			var record = make(map[string]interface{})
 			var recordStr = make(map[string]string)
-			err := rows.MapScan(record)
+			err := MapScan(*rows, record)
 			if err != nil {
 				return "", err
 			}
@@ -144,4 +144,29 @@ func dbProvider(p *DBExecProvider, sqls string) (string, error) {
 	}
 	out := string(jsonByte)
 	return out, nil
+}
+
+//MapScan copy sqlx
+func MapScan(r sql.Rows, dest map[string]interface{}) error {
+	// ignore r.started, since we needn't use reflect for anything.
+	columns, err := r.Columns()
+	if err != nil {
+		return err
+	}
+
+	values := make([]interface{}, len(columns))
+	for i := range values {
+		values[i] = new(interface{})
+	}
+
+	err = r.Scan(values...)
+	if err != nil {
+		return err
+	}
+
+	for i, column := range columns {
+		dest[column] = *(values[i].(*interface{}))
+	}
+
+	return r.Err()
 }

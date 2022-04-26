@@ -184,14 +184,13 @@ func Transfer(volume Volume, dstSchema string) (interface{}, error) {
 }
 
 func JsonSchema2Path(jsonschema string) (TransferPaths, error) {
-	out := make(TransferPaths, 0)
 	var schema Schema
 	err := json.Unmarshal([]byte(jsonschema), &schema)
 	if err != nil {
 		return nil, err
 	}
 	schema.Init()
-	out = schema.GetTransferPaths()
+	out := schema.GetTransferPaths()
 
 	return out, nil
 

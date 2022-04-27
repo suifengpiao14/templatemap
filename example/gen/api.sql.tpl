@@ -28,7 +28,5 @@ select * from `api` where 1=1 {{template "PaginateWhere" .}} and `deleted_at` is
     {{setValue . "Limit" (atoi .PageSize)}}
     {{ execSQLTpl . "Paginate"  "docapi_db2" }}
 {{end}}
-   
-
 {{end}}
 

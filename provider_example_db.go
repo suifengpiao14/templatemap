@@ -24,7 +24,7 @@ const (
 
 type DBExecProvider struct {
 	DSN      string
-	logLevel string
+	LogLevel string
 	db       *sql.DB
 	dbOnce   sync.Once
 }
@@ -73,7 +73,7 @@ func dbProvider(p *DBExecProvider, sqls string) (string, error) {
 	sqls = StandardizeSpaces(TrimSpaces(sqls)) // 格式化sql语句
 	sqlType := SQLType(sqls)
 	db := p.GetDb()
-	if p.logLevel == SQL_LOG_LEVEL_DEBUG {
+	if p.LogLevel == SQL_LOG_LEVEL_DEBUG {
 		fmt.Println(sqls)
 	}
 	if sqlType != SQL_TYPE_SELECT {

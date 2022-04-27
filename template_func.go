@@ -20,6 +20,7 @@ var TemplatefuncMap = template.FuncMap{
 	"toCamel":       ToCamel,
 	"toLowerCamel":  ToLowerCamel,
 	"snakeCase":     SnakeCase,
+	"joinAll":       JoinAll,
 }
 
 const IN_INDEX = "__inIndex"
@@ -119,4 +120,29 @@ func ToLowerCamel(name string) string {
 
 func SnakeCase(name string) string {
 	return codegen.SnakeCase(name)
+}
+
+func JoinAll(sep string, v ...interface{}) string {
+	b := make([]string, 0, len(v))
+	for _, s := range v {
+		if s != nil {
+			b = append(b, strval(s))
+		}
+	}
+	return strings.Join(b, sep)
+}
+
+func strval(v interface{}) string {
+	switch v := v.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	case error:
+		return v.Error()
+	case fmt.Stringer:
+		return v.String()
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }

@@ -79,11 +79,37 @@ func getValue(v *Volume, key string) (interface{}, bool) {
 	if !ok {
 		return nil, false
 	}
-	if !gjson.Valid(jsonStr) {
+	jsonValue, ok := getValueFromJson(jsonStr, jsonKey)
+	return jsonValue, ok
+}
+
+func getValueFromJson(jsonStr string, jsonKey string) (interface{}, bool) {
+	if jsonStr == "" {
 		return nil, false
 	}
-	jsonValue := gjson.Get(jsonStr, jsonKey).Value()
-	return jsonValue, true
+	if !gjson.Valid(jsonStr) {
+		err := errors.Errorf(`json str inValid %s`, jsonStr)
+		panic(err)
+	}
+	key := jsonKey
+	value := gjson.Result{}
+	for {
+		value = gjson.Get(jsonStr, key)
+		if value.Exists() {
+			break
+		}
+		lastIndex := strings.LastIndex(key, ".")
+		if lastIndex > -1 {
+			key = key[:lastIndex]
+			continue
+		}
+		break
+	}
+	if jsonKey == key {
+		return value.Value(), value.Exists()
+	}
+
+	return getValueFromJson(value.Str, jsonKey[len(key)+1:])
 }
 
 func convertType(dst interface{}, src interface{}) bool {
@@ -130,6 +156,7 @@ type RepositoryInterface interface {
 	AddTemplateByStr(name string, s string) (err error)
 	GetTemplate() *template.Template
 	ExecuteTemplate(name string, volume VolumeInterface) (string, error)
+	TemplateExists(name string) bool
 	RegisterProvider(identifier string, provider ExecproviderInterface)
 	GetProvider(identifier string) (ExecproviderInterface, bool)
 }
@@ -224,4 +251,9 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) (strin
 	out := b.String()
 	return out, nil
 
+}
+
+func (r *repository) TemplateExists(name string) bool {
+	t := r.template.Lookup(name)
+	return t != nil
 }

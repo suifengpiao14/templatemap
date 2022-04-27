@@ -7,7 +7,7 @@ import (
 
 func TestRepository(t *testing.T) {
 	r := NewRepository()
-	r.RegisterProvider("curl", ExecProviderFuncCurl)
+	r.RegisterProvider("curl", &CURLExecProvider{})
 	r.RegisterProvider("docapi_db", &DBExecProvider{LogLevel: SQL_LOG_LEVEL_DEBUG, DSN: "hjx:123456@tcp(106.53.100.222:3306)/docapi?charset=utf8&timeout=1s&readTimeout=5s&writeTimeout=5s&parseTime=False&loc=Local&multiStatements=true"})
 	r.RegisterProvider("docapi_db2", &DBExecProvider{LogLevel: SQL_LOG_LEVEL_DEBUG, DSN: "hjx:123456@tcp(106.53.100.222:3306)/docapi?charset=utf8&timeout=1s&readTimeout=5s&writeTimeout=5s&parseTime=False&loc=Local&multiStatements=true"})
 

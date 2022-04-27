@@ -36,7 +36,6 @@ func (p *DBExecProvider) Exec(identifier string, s string) (string, error) {
 // GetDb is a signal DB
 func (p *DBExecProvider) GetDb() *sql.DB {
 	if p.db == nil {
-
 		if p.DSN == "" {
 			err := errors.Errorf("DBExecProvider %#v DNS is null ", p)
 			panic(err)

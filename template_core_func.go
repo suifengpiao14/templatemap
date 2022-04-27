@@ -22,6 +22,7 @@ var CoreFuncMap = template.FuncMap{
 	"toSQL":           ToSQL,
 	"exec":            Exec,
 	"execSQLTpl":      ExecSQLTpl,
+	"execCURLTpl":     ExecCURLTpl,
 	"gjsonGet":        gjson.Get,
 	"sjsonSet":        sjson.Set,
 	"sjsonSetRaw":     sjson.SetRaw,
@@ -159,6 +160,20 @@ func getNamedData(data interface{}) (out map[string]interface{}, err error) {
 		}
 	}
 	return
+}
+
+func ExecCURLTpl(volume VolumeInterface, templateName string, dbIdentifier string) error {
+	tplOut, err := ExecuteTemplate(volume, templateName)
+	if err != nil {
+		return err
+	}
+	out, err := Exec(volume, dbIdentifier, tplOut)
+	if err != nil {
+		return err
+	}
+	storeKey := fmt.Sprintf("%sOut", templateName)
+	volume.SetValue(storeKey, out)
+	return nil
 }
 
 func ExecSQLTpl(volume VolumeInterface, templateName string, dbIdentifier string) error {

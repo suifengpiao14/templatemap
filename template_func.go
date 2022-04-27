@@ -1,26 +1,38 @@
 package templatemap
 
 import (
+	"bytes"
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
 
+	"github.com/rs/xid"
 	"goa.design/goa/v3/codegen"
 )
 
 var TemplatefuncMap = template.FuncMap{
-	"zeroTime":      ZeroTime,
-	"currentTime":   CurrentTime,
-	"permanentTime": PermanentTime,
-	"contains":      strings.Contains,
-	"newPreComma":   NewPreComma,
-	"in":            In,
-	"toCamel":       ToCamel,
-	"toLowerCamel":  ToLowerCamel,
-	"snakeCase":     SnakeCase,
-	"joinAll":       JoinAll,
+	"zeroTime":          ZeroTime,
+	"currentTime":       CurrentTime,
+	"permanentTime":     PermanentTime,
+	"contains":          strings.Contains,
+	"newPreComma":       NewPreComma,
+	"in":                In,
+	"toCamel":           ToCamel,
+	"toLowerCamel":      ToLowerCamel,
+	"snakeCase":         SnakeCase,
+	"joinAll":           JoinAll,
+	"md5lower":          MD5LOWER,
+	"fen2yuan":          Fen2yuan,
+	"timestampSecond":   TimestampSecond,
+	"xid":               Xid,
+	"jsonCompact":       JsonCompact,
+	"standardizeSpaces": StandardizeSpaces,
 }
 
 const IN_INDEX = "__inIndex"
@@ -49,6 +61,41 @@ func PermanentTime(volume VolumeInterface) (string, error) {
 	value := "3000-12-31 23:59:59"
 	volume.SetValue(named, value)
 	return placeholder, nil
+}
+
+func MD5LOWER(s ...string) string {
+	allStr := strings.Join(s, "")
+	h := md5.New()
+	h.Write([]byte(allStr))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func Fen2yuan(fen interface{}) string {
+	var yuan float64
+	intFen, ok := fen.(int)
+	if ok {
+		yuan = float64(intFen) / 100
+		return strconv.FormatFloat(yuan, 'f', 2, 64)
+	}
+	strFen, ok := fen.(string)
+	if ok {
+		intFen, err := strconv.Atoi(strFen)
+		if err == nil {
+			yuan = float64(intFen) / 100
+			return strconv.FormatFloat(yuan, 'f', 2, 64)
+		}
+	}
+	return strFen
+}
+
+// 秒计数的时间戳
+func TimestampSecond() int64 {
+	return time.Now().Unix()
+}
+
+func Xid() string {
+	guid := xid.New()
+	return guid.String()
 }
 
 type preComma struct {
@@ -145,4 +192,15 @@ func strval(v interface{}) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+func JsonCompact(src string) (out string, err error) {
+	var buff bytes.Buffer
+	err = json.Compact(&buff, []byte(src))
+	if err != nil {
+		return
+	}
+	out = buff.String()
+	return
+
 }

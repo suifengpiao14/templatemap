@@ -39,38 +39,48 @@ type ResponseData struct {
 	Body       interface{}    `json:"body"`
 }
 
-var curlClient *http.Client
-var curlClientOnce sync.Once
-
-func GetCurl() *http.Client {
-	if curlClient == nil {
-		curlClient = InitHTTPClient()
-	}
-	return curlClient
-}
-
 func InitHTTPClient() *http.Client {
-	// 使用单例创建client
-	var client *http.Client
-	curlClientOnce.Do(func() {
-		client = &http.Client{
-			Transport: &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout:   10 * time.Second, // 连接超时时间
-					KeepAlive: 30 * time.Second, // 连接保持超时时间
-				}).DialContext,
-				MaxIdleConns:        2000,             // 最大连接数,默认0无穷大
-				MaxIdleConnsPerHost: 2000,             // 对每个host的最大连接数量(MaxIdleConnsPerHost<=MaxIdleConns)
-				IdleConnTimeout:     90 * time.Second, // 多长时间未使用自动关闭连接
-			},
-		}
-	})
-	return client
+	return &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   10 * time.Second, // 连接超时时间
+				KeepAlive: 30 * time.Second, // 连接保持超时时间
+			}).DialContext,
+			MaxIdleConns:        2000,             // 最大连接数,默认0无穷大
+			MaxIdleConnsPerHost: 2000,             // 对每个host的最大连接数量(MaxIdleConnsPerHost<=MaxIdleConns)
+			IdleConnTimeout:     90 * time.Second, // 多长时间未使用自动关闭连接
+		},
+	}
 }
 
-var ExecProviderFuncCurl = ExecProviderFunc(CURlProvider)
+type CURLExecProvider struct {
+	DSN        string
+	LogLevel   string
+	Timeout    time.Duration
+	InitClient func() *http.Client
+	client     *http.Client
+	clinetOnce sync.Once
+}
 
-func CURlProvider(identifier string, httpRaw string) (string, error) {
+func (p *CURLExecProvider) Exec(identifier string, s string) (string, error) {
+	return CURlProvider(p, s)
+}
+
+// GetDb is a signal DB
+func (p *CURLExecProvider) GetClient() *http.Client {
+	if p.client == nil {
+		if p.InitClient == nil {
+			p.InitClient = InitHTTPClient
+		}
+		p.clinetOnce.Do(func() {
+			p.client = p.InitClient()
+
+		})
+	}
+	return p.client
+}
+
+func CURlProvider(p *CURLExecProvider, httpRaw string) (string, error) {
 	reqReader, err := ReadRequest(httpRaw)
 	if err != nil {
 		return "", err
@@ -79,9 +89,11 @@ func CURlProvider(identifier string, httpRaw string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// 3 分钟超时
-	ctx, cancel := context.WithTimeout(context.Background(), CURL_TIMEOUT)
-
+	timeout := p.Timeout
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	req, err := http.NewRequestWithContext(ctx, reqData.Method, reqData.URL, bytes.NewReader([]byte(reqData.Body)))
 	cancel()
 	if err != nil {
@@ -94,7 +106,7 @@ func CURlProvider(identifier string, httpRaw string) (string, error) {
 		}
 	}
 
-	rsp, err := GetCurl().Do(req)
+	rsp, err := p.GetClient().Do(req)
 	if err != nil {
 		return "", err
 	}

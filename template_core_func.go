@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -206,8 +207,24 @@ func TransferData(volume VolumeInterface, transferPaths TransferPaths) (string, 
 			err := errors.Errorf("not found %s data from volume %#v", tp.Src, volume)
 			return "", err
 		}
-		path := strings.ReplaceAll(tp.Dst, "#", "-1")
-		out, err = sjson.Set(out, path, v)
+		if strings.Contains(tp.Dst, "#") {
+			arr, ok := v.([]interface{})
+			if !ok {
+				err = errors.Errorf("")
+				return "", err
+			}
+			for index, val := range arr {
+				path := strings.ReplaceAll(tp.Dst, "#", strconv.Itoa(index))
+				out, err = sjson.Set(out, path, val)
+				if err != nil {
+					err = errors.WithStack(err)
+					return "", err
+				}
+			}
+			continue
+
+		}
+		out, err = sjson.Set(out, tp.Dst, v)
 		if err != nil {
 			err = errors.WithStack(err)
 			return "", err

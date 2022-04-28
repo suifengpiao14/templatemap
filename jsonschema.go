@@ -87,8 +87,17 @@ type Schema struct {
 }
 
 type TransferPath struct {
-	Src string
-	Dst string
+	Src     string
+	Dst     string
+	DstType string
+}
+
+func (t *TransferPath) ConvertType(dest interface{}) {
+	ok := convertType(t.Src, dest)
+	if !ok {
+		err := errors.Errorf("src: %s can`t convert to dest type: %t", t.Src, dest)
+		panic(err)
+	}
 }
 
 type TransferPaths []*TransferPath

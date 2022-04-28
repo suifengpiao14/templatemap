@@ -34,3 +34,11 @@ func TestRepository(t *testing.T) {
 	//fmt.Println(volume)
 	fmt.Println(out)
 }
+
+func TestConvertType(t *testing.T) {
+	src := 10
+	var dst bool
+	ok := convertType(&dst, src)
+	fmt.Println(ok)
+	fmt.Println(dst)
+}

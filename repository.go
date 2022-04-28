@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"reflect"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -116,26 +117,53 @@ func convertType(dst interface{}, src interface{}) bool {
 	if src == nil || dst == nil {
 		return false
 	}
-	rv := reflect.ValueOf(dst)
-	if rv.Kind() == reflect.Ptr && rv.Elem().Kind() == reflect.Interface { // value 为 interface  指针时，使用 rv.Elem()
-		rv = rv.Elem()
+	rv := reflect.Indirect(reflect.ValueOf(dst))
+	if !rv.CanSet() {
+		err := errors.Errorf("dst :%#v reflect.CanSet() must return  true", dst)
+		panic(err)
 	}
 	rvT := rv.Type()
-	rTmp := reflect.ValueOf(src)
-	ok := rTmp.CanConvert(rvT)
-	if !ok {
-		return false
+	rTmp := reflect.Indirect(reflect.ValueOf(src))
+	if rTmp.CanConvert(rvT) {
+		rv.Set(rTmp.Convert(rvT))
+		return true
 	}
-	val := rTmp.Convert(rvT)
-	if rv.CanSet() {
-		rv.Set(val)
+	srcStr := strval(src)
+	switch rvT.Kind() {
+	case reflect.Int:
+		srcInt, err := strconv.Atoi(srcStr)
+		if err != nil {
+			err = errors.WithMessagef(err, "src:%s can`t convert to int", srcStr)
+			panic(err)
+		}
+		rv.Set(reflect.ValueOf(srcInt))
+		return true
+	case reflect.Int64:
+		srcInt, err := strconv.ParseInt(srcStr, 10, 64)
+		if err != nil {
+			err = errors.WithMessagef(err, "src:%s can`t convert to int64", srcStr)
+			panic(err)
+		}
+		rv.SetInt(int64(srcInt))
+		return true
+	case reflect.Float64:
+		srcFloat, err := strconv.ParseFloat(srcStr, 64)
+		if err != nil {
+			err = errors.WithMessagef(err, "src:%s can`t convert to float64", srcStr)
+			panic(err)
+		}
+		rv.SetFloat(srcFloat)
+		return true
+	case reflect.Bool:
+		srcBool, err := strconv.ParseBool(srcStr)
+		if err != nil {
+			err = errors.WithMessagef(err, "src:%s can`t convert to bool", srcStr)
+			panic(err)
+		}
+		rv.SetBool(srcBool)
 		return true
 	}
 
-	if rv.Kind() == reflect.Ptr && rv.Elem().CanSet() {
-		rv.Elem().Set(val.Elem())
-		return true
-	}
 	panic("can not get value")
 }
 

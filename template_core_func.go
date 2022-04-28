@@ -210,6 +210,11 @@ func JsonSchema2Path(jsonschema string) (TransferPaths, error) {
 
 }
 
+//TransferFiledToVolume 根据TransferPaths 提炼数据到volume 根节点下，主要用于不同接口间输入输出数据的承接
+func TransferFiledToVolume(volume VolumeInterface, p TransferPaths) {
+
+}
+
 func TransferData(volume VolumeInterface, transferPaths TransferPaths) (string, error) {
 	out := ""
 	for _, tp := range transferPaths {
@@ -250,7 +255,39 @@ func TransferData(volume VolumeInterface, transferPaths TransferPaths) (string, 
 			continue
 
 		}
-		out, err = sjson.Set(out, tp.Dst, v)
+		var realV interface{}
+		realV = v //set default v with string type
+		if tp.DstType != "" {
+			strArr := make([]string, 0)
+			intArr := make([]int, 0)
+			int64Arr := make([]int64, 0)
+			switch tp.DstType {
+			case reflect.String.String():
+				realV = ""
+			case reflect.Int.String():
+				realV = 0
+			case reflect.Int64.String():
+				realV = int64(0)
+			case reflect.Uint.String():
+				realV = uint(0)
+			case reflect.Uint64.String():
+				realV = uint64(0)
+			case reflect.Float64.String():
+				realV = float64(0)
+			case reflect.Bool.String():
+				realV = false
+			case reflect.TypeOf(strArr).String():
+				realV = strArr
+			case reflect.TypeOf(intArr).String():
+				realV = intArr
+			case reflect.TypeOf(int64Arr).String():
+				realV = int64Arr
+			case reflect.Array.String(), reflect.Slice.String():
+				realV = make([]interface{}, 0)
+			}
+			tp.ConvertType(&realV)
+		}
+		out, err = sjson.Set(out, tp.Dst, realV)
 		if err != nil {
 			err = errors.WithStack(err)
 			return "", err

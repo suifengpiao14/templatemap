@@ -226,13 +226,19 @@ func TransferData(volume VolumeInterface, transferPaths TransferPaths) (string, 
 				err = errors.Errorf("")
 				return "", err
 			}
-			// 初始化数组元素(可以确保空数组的写入)
-			/* 			keyArr := strings.SplitN(tp.Dst, "#", 2)
-			   			out, err = sjson.Set(out, keyArr[0], "[]")
-			   			if err != nil {
-			   				err = errors.WithStack(err)
-			   				return "", err
-			   			} */
+			if len(arr) == 0 {
+				keyArr := strings.SplitN(tp.Dst, "#", 2)
+				arrKey := keyArr[0]
+				if gjson.Get(out, arrKey).Exists() {
+					continue
+				}
+				out, err = sjson.Set(out, arrKey, "[]")
+				if err != nil {
+					err = errors.WithStack(err)
+					return "", err
+				}
+				continue
+			}
 			for index, val := range arr {
 				path := strings.ReplaceAll(tp.Dst, "#", strconv.Itoa(index))
 				out, err = sjson.Set(out, path, val)

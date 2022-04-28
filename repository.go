@@ -182,7 +182,6 @@ func (r *repository) RegisterProvider(providor ExecproviderInterface, tplNames .
 	for _, tplName := range tplNames {
 		r.providerPool[tplName] = providor
 	}
-	return
 }
 
 func (r *repository) GetProvider(tplName string) (ExecproviderInterface, bool) {
@@ -229,7 +228,7 @@ func (r *repository) AddTemplateByStr(name string, s string) []string {
 	} else {
 		tmpl = r.template.New(name)
 	}
-	tmpl = template.Must(tmpl.Parse(s)) // 追加
+	template.Must(tmpl.Parse(s)) // 追加
 
 	tmp := template.Must(newTemplate().Parse(s))
 	out := getTemplateNames(tmp)

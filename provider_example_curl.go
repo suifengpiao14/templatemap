@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,30 +34,45 @@ type RequestData struct {
 	Body    string         `json:"body"`
 }
 type ResponseData struct {
-	HttpStatus string         `json:"httpStatus"`
-	Header     http.Header    `json:"header"`
-	Cookies    []*http.Cookie `json:"cookies"`
-	Body       interface{}    `json:"body"`
+	HttpStatus  string         `json:"httpStatus"`
+	Header      http.Header    `json:"header"`
+	Cookies     []*http.Cookie `json:"cookies"`
+	Body        string         `json:"body"`
+	RequestData *RequestData   `json:"requestData"`
 }
 
-func InitHTTPClient() *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout:   10 * time.Second, // 连接超时时间
-				KeepAlive: 30 * time.Second, // 连接保持超时时间
-			}).DialContext,
-			MaxIdleConns:        2000,             // 最大连接数,默认0无穷大
-			MaxIdleConnsPerHost: 2000,             // 对每个host的最大连接数量(MaxIdleConnsPerHost<=MaxIdleConns)
-			IdleConnTimeout:     90 * time.Second, // 多长时间未使用自动关闭连接
-		},
+func InitHTTPClient(p *CURLExecProvider) *http.Client {
+
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second, // 连接超时时间
+			KeepAlive: 30 * time.Second, // 连接保持超时时间
+		}).DialContext,
+		MaxIdleConns:        2000,             // 最大连接数,默认0无穷大
+		MaxIdleConnsPerHost: 2000,             // 对每个host的最大连接数量(MaxIdleConnsPerHost<=MaxIdleConns)
+		IdleConnTimeout:     90 * time.Second, // 多长时间未使用自动关闭连
 	}
+	if p.Config.Proxy != "" {
+		proxy, err := url.Parse(p.Config.Proxy)
+		if err != nil {
+			panic(err)
+		}
+		transport.Proxy = http.ProxyURL(proxy)
+	}
+	httpClient := &http.Client{
+		Transport: transport,
+	}
+	return httpClient
+}
+
+type CURLExecProviderConfig struct {
+	Proxy    string        `json:"proxy"`
+	LogLevel string        `json:"logLevel"`
+	Timeout  time.Duration `json:"timeout"`
 }
 
 type CURLExecProvider struct {
-	DSN        string
-	LogLevel   string
-	Timeout    time.Duration
+	Config     CURLExecProviderConfig
 	InitClient func() *http.Client
 	client     *http.Client
 	clinetOnce sync.Once
@@ -70,7 +86,7 @@ func (p *CURLExecProvider) Exec(identifier string, s string) (string, error) {
 func (p *CURLExecProvider) GetClient() *http.Client {
 	if p.client == nil {
 		if p.InitClient == nil {
-			p.InitClient = InitHTTPClient
+			p.InitClient = func() *http.Client { return InitHTTPClient(p) }
 		}
 		p.clinetOnce.Do(func() {
 			p.client = p.InitClient()
@@ -89,13 +105,14 @@ func CURlProvider(p *CURLExecProvider, httpRaw string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	timeout := p.Timeout
+	timeout := p.Config.Timeout
 	if timeout == 0 {
-		timeout = 30 * time.Second
+		timeout = 30
 	}
+	timeout = timeout * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, reqData.Method, reqData.URL, bytes.NewReader([]byte(reqData.Body)))
-	cancel()
 	if err != nil {
 		return "", err
 	}
@@ -127,21 +144,12 @@ func CURlProvider(p *CURLExecProvider, httpRaw string) (string, error) {
 	}
 
 	rspData := ResponseData{
-		HttpStatus: strconv.Itoa(rsp.StatusCode),
-		Header:     rsp.Header,
-		Cookies:    rsp.Cookies(),
+		HttpStatus:  strconv.Itoa(rsp.StatusCode),
+		Header:      rsp.Header,
+		Cookies:     rsp.Cookies(),
+		RequestData: reqData,
 	}
-	contentType := rsp.Header.Get("Content-Type")
-	if strings.Contains(strings.ToLower(contentType), "application/json") {
-		var v interface{}
-		err := json.Unmarshal(b, &v)
-		if err != nil {
-			msg := fmt.Sprintf("response httpstatus:%d, body: %s", rsp.StatusCode, string(b))
-			err = errors.WithMessage(err, msg)
-			return "", err
-		}
-		rspData.Body = v
-	}
+	rspData.Body = string(b)
 	jsonByte, err := json.Marshal(rspData)
 	if err != nil {
 		return "", err

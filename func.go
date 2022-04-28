@@ -114,3 +114,14 @@ func TrimSpaces(s string) string {
 func StandardizeSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
+
+func getTemplateNames(t *template.Template) []string {
+	out := make([]string, 0)
+	for _, tpl := range t.Templates() {
+		name := tpl.Name()
+		if name != "" {
+			out = append(out, name)
+		}
+	}
+	return out
+}

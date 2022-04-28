@@ -40,14 +40,14 @@ func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
 }
 
 //ExecuteTemplate 模板中调用模板
-func ExecuteTemplate(volume VolumeInterface, name string) (string, error) {
+func ExecuteTemplate(volume VolumeInterface, name string) string {
 	var r = getRepositoryFromVolume(volume)
 	out, err := r.ExecuteTemplate(name, volume)
 	if err != nil {
-		return "", err
+		panic(err) // ExecuteTemplate 函数可能嵌套很多层，抛出错误值后有可能被当成正常值处理，所以此处直接panic 退出，保留原始错误输出
 	}
 	out = strings.ReplaceAll(out, WINDOW_EOF, EOF)
-	return out, nil
+	return out
 }
 
 func SetValue(volume VolumeInterface, key string, value interface{}) string { // SetValue 返回空字符，不对模板产生新输出
@@ -61,19 +61,19 @@ func GetValue(volume VolumeInterface, key string) interface{} {
 	return value
 }
 
-func Exec(volume VolumeInterface, identifier string, s string) (string, error) {
+func Exec(volume VolumeInterface, tplName string, s string) string {
 	var provider ExecproviderInterface
 	var r = getRepositoryFromVolume(volume)
-	provider, ok := r.GetProvider(identifier)
+	provider, ok := r.GetProvider(tplName)
 	if !ok {
-		err := errors.Errorf("not found provider by identifier: %s", identifier)
-		return "", err
+		err := errors.Errorf("not found provider by template name : %s", tplName)
+		panic(err)
 	}
-	out, err := provider.Exec(identifier, s)
+	out, err := provider.Exec(tplName, s)
 	if err != nil {
-		return "", err
+		panic(err)
 	}
-	return out, nil
+	return out
 }
 
 func ToSQL(volume VolumeInterface, namedSQL string) (string, error) {
@@ -162,37 +162,35 @@ func getNamedData(data interface{}) (out map[string]interface{}, err error) {
 	return
 }
 
-func ExecCURLTpl(volume VolumeInterface, templateName string, dbIdentifier string) error {
-	tplOut, err := ExecuteTemplate(volume, templateName)
-	if err != nil {
-		return err
-	}
-	out, err := Exec(volume, dbIdentifier, tplOut)
-	if err != nil {
-		return err
-	}
+func ExecCURLTpl(volume VolumeInterface, templateName string) error {
+	tplOut := ExecuteTemplate(volume, templateName)
+	out := Exec(volume, templateName, tplOut)
 	storeKey := fmt.Sprintf("%sOut", templateName)
 	volume.SetValue(storeKey, out)
 	return nil
 }
 
-func ExecSQLTpl(volume VolumeInterface, templateName string, dbIdentifier string) error {
+func ExecSQLTpl(volume VolumeInterface, templateName string) string {
 	//{{executeTemplate . "Paginate"|toSQL . | exec . "docapi_db2"|setValue . }}
-	tplOut, err := ExecuteTemplate(volume, templateName)
-	if err != nil {
-		return err
+	tplOut := ExecuteTemplate(volume, templateName)
+	tplOut = StandardizeSpaces(tplOut)
+	if tplOut == "" {
+		err := errors.Errorf("template :%s output empty", tplOut)
+		panic(err)
 	}
 	sql, err := ToSQL(volume, tplOut)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	out, err := Exec(volume, dbIdentifier, sql)
+	sqlKey := fmt.Sprintf("%sSQL", templateName)
+	volume.SetValue(sqlKey, sql)
+	out := Exec(volume, templateName, sql)
 	if err != nil {
-		return err
+		panic(err)
 	}
 	storeKey := fmt.Sprintf("%sOut", templateName)
 	volume.SetValue(storeKey, out)
-	return nil
+	return "" // 符合模板函数，至少一个输出结构
 }
 
 func Transfer(volume Volume, dstSchema string) (interface{}, error) {
@@ -228,6 +226,13 @@ func TransferData(volume VolumeInterface, transferPaths TransferPaths) (string, 
 				err = errors.Errorf("")
 				return "", err
 			}
+			// 初始化数组元素(可以确保空数组的写入)
+			/* 			keyArr := strings.SplitN(tp.Dst, "#", 2)
+			   			out, err = sjson.Set(out, keyArr[0], "[]")
+			   			if err != nil {
+			   				err = errors.WithStack(err)
+			   				return "", err
+			   			} */
 			for index, val := range arr {
 				path := strings.ReplaceAll(tp.Dst, "#", strconv.Itoa(index))
 				out, err = sjson.Set(out, path, val)

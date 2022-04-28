@@ -15,18 +15,23 @@ import (
 var DriverName = "mysql"
 
 const (
-	SQL_TYPE_SELECT     = "SELECT"
-	SQL_TYPE_OTHER      = "OTHER"
-	SQL_LOG_LEVEL_DEBUG = "debug"
-	SQL_LOG_LEVEL_INFO  = "info"
-	SQL_LOG_LEVEL_ERROR = "error"
+	SQL_TYPE_SELECT = "SELECT"
+	SQL_TYPE_OTHER  = "OTHER"
+	LOG_LEVEL_DEBUG = "debug"
+	LOG_LEVEL_INFO  = "info"
+	LOG_LEVEL_ERROR = "error"
 )
 
+type DBExecProviderConfig struct {
+	DSN      string `json:"dsn"`
+	LogLevel string `json:"logLevel"`
+	Timeout  int    `json:"timeout"`
+}
+
 type DBExecProvider struct {
-	DSN      string
-	LogLevel string
-	db       *sql.DB
-	dbOnce   sync.Once
+	Config DBExecProviderConfig
+	db     *sql.DB
+	dbOnce sync.Once
 }
 
 func (p *DBExecProvider) Exec(identifier string, s string) (string, error) {
@@ -36,12 +41,12 @@ func (p *DBExecProvider) Exec(identifier string, s string) (string, error) {
 // GetDb is a signal DB
 func (p *DBExecProvider) GetDb() *sql.DB {
 	if p.db == nil {
-		if p.DSN == "" {
+		if p.Config.DSN == "" {
 			err := errors.Errorf("DBExecProvider %#v DNS is null ", p)
 			panic(err)
 		}
 		p.dbOnce.Do(func() {
-			db, err := sql.Open(DriverName, p.DSN)
+			db, err := sql.Open(DriverName, p.Config.DSN)
 			if err != nil {
 				panic(err)
 			}
@@ -72,9 +77,6 @@ func dbProvider(p *DBExecProvider, sqls string) (string, error) {
 	sqls = StandardizeSpaces(TrimSpaces(sqls)) // 格式化sql语句
 	sqlType := SQLType(sqls)
 	db := p.GetDb()
-	if p.LogLevel == SQL_LOG_LEVEL_DEBUG {
-		fmt.Println(sqls)
-	}
 	if sqlType != SQL_TYPE_SELECT {
 		res, err := db.Exec(sqls)
 		if err != nil {

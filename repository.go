@@ -151,14 +151,14 @@ func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
 }
 
 type RepositoryInterface interface {
-	AddTemplateByDir(dir string) (err error)
-	AddTemplateByFS(fsys fs.FS, root string) (err error)
-	AddTemplateByStr(name string, s string) (err error)
+	AddTemplateByDir(dir string) (addTplNames []string)
+	AddTemplateByFS(fsys fs.FS, root string) (addTplNames []string)
+	AddTemplateByStr(name string, s string) (addTplNames []string)
 	GetTemplate() *template.Template
-	ExecuteTemplate(name string, volume VolumeInterface) (string, error)
+	ExecuteTemplate(name string, volume VolumeInterface) (out string, err error)
 	TemplateExists(name string) bool
-	RegisterProvider(identifier string, provider ExecproviderInterface)
-	GetProvider(identifier string) (ExecproviderInterface, bool)
+	RegisterProvider(provider ExecproviderInterface, tplNames ...string)
+	GetProvider(tplName string) (ExecproviderInterface, bool)
 }
 
 type repository struct {
@@ -168,18 +168,25 @@ type repository struct {
 
 func NewRepository() RepositoryInterface {
 	r := &repository{
-		template:     template.New("").Funcs(CoreFuncMap).Funcs(TemplatefuncMap).Funcs(sprig.TxtFuncMap()),
+		template:     newTemplate(),
 		providerPool: make(map[string]ExecproviderInterface),
 	}
 	return r
 }
 
-func (r *repository) RegisterProvider(identifier string, provider ExecproviderInterface) {
-	r.providerPool[identifier] = provider
+func newTemplate() *template.Template {
+	return template.New("").Funcs(CoreFuncMap).Funcs(TemplatefuncMap).Funcs(sprig.TxtFuncMap())
 }
 
-func (r *repository) GetProvider(identifier string) (ExecproviderInterface, bool) {
-	provider, ok := r.providerPool[identifier]
+func (r *repository) RegisterProvider(providor ExecproviderInterface, tplNames ...string) {
+	for _, tplName := range tplNames {
+		r.providerPool[tplName] = providor
+	}
+	return
+}
+
+func (r *repository) GetProvider(tplName string) (ExecproviderInterface, bool) {
+	provider, ok := r.providerPool[tplName]
 	return provider, ok
 }
 
@@ -187,47 +194,46 @@ func (r *repository) GetTemplate() *template.Template {
 	return r.template
 }
 
-func (r *repository) AddTemplateByDir(dir string) (err error) {
+func (r *repository) AddTemplateByDir(dir string) []string {
 
 	patten := fmt.Sprintf("%s/**%s", strings.TrimRight(dir, "/"), TPlSuffix)
 	allFileList, err := GlobDirectory(dir, patten)
 	if err != nil {
 		err = errors.WithStack(err)
-		return err
+		panic(err)
 	}
-	r.template, err = r.template.ParseFiles(allFileList...)
-	if err != nil {
-		return err
-	}
-	return
+
+	r.template = template.Must(r.template.ParseFiles(allFileList...)) // 追加
+	tmp := template.Must(newTemplate().ParseFiles(allFileList...))
+	out := getTemplateNames(tmp)
+	return out
 }
 
-func (r *repository) AddTemplateByFS(fsys fs.FS, root string) (err error) {
+func (r *repository) AddTemplateByFS(fsys fs.FS, root string) []string {
 	patten := fmt.Sprintf("%s/**%s", strings.TrimRight(root, "/"), TPlSuffix)
 	allFileList, err := GlobFS(fsys, patten)
 	if err != nil {
 		err = errors.WithStack(err)
-		return err
+		panic(err)
 	}
-	r.template, err = parseFiles(r.template, readFileFS(fsys), allFileList...)
-	if err != nil {
-		return err
-	}
-	return
+	r.template = template.Must(parseFiles(r.template, readFileFS(fsys), allFileList...)) // 追加
+	tmp := template.Must(parseFiles(newTemplate(), readFileFS(fsys), allFileList...))
+	out := getTemplateNames(tmp)
+	return out
 }
 
-func (r *repository) AddTemplateByStr(name string, s string) (err error) {
+func (r *repository) AddTemplateByStr(name string, s string) []string {
 	var tmpl *template.Template
 	if name == r.template.Name() {
 		tmpl = r.template
 	} else {
 		tmpl = r.template.New(name)
 	}
-	_, err = tmpl.Parse(s)
-	if err != nil {
-		return err
-	}
-	return
+	tmpl = template.Must(tmpl.Parse(s)) // 追加
+
+	tmp := template.Must(newTemplate().Parse(s))
+	out := getTemplateNames(tmp)
+	return out
 }
 
 func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) (string, error) {

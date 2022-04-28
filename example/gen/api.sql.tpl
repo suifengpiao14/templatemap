@@ -22,11 +22,11 @@ select * from `api` where 1=1 {{template "PaginateWhere" .}} and `deleted_at` is
 
 
 {{define "getPaginate"}}
-{{execSQLTpl . "PaginateTotal"  "docapi_db2"}}
+{{execSQLTpl . "PaginateTotal"}}
 {{if getValue . "PaginateTotalOut" }}
     {{setValue . "Offset" (mul .PageIndex  .PageSize)}}
     {{setValue . "Limit" (atoi .PageSize)}}
-    {{ execSQLTpl . "Paginate"  "docapi_db2" }}
+    {{ execSQLTpl . "Paginate"}}
 {{end}}
 {{end}}
 

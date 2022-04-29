@@ -62,11 +62,16 @@ func GetValue(volume VolumeInterface, key string) interface{} {
 }
 
 func Exec(volume VolumeInterface, tplName string, s string) string {
-	var provider ExecproviderInterface
 	var r = getRepositoryFromVolume(volume)
-	provider, ok := r.GetProvider(tplName)
+	meta, ok := r.GetMeta(tplName)
 	if !ok {
-		err := errors.Errorf("not found provider by template name : %s", tplName)
+		err := errors.Errorf("not found meta  by template name : %s", tplName)
+		panic(err)
+	}
+
+	provider := meta.ExecProvider
+	if provider == nil {
+		err := errors.Errorf("meta:%v provider must be set", meta)
 		panic(err)
 	}
 	out, err := provider.Exec(tplName, s)
@@ -109,11 +114,11 @@ func getNamedData(data interface{}) (out map[string]interface{}, err error) {
 		out = *mapOutRef
 		return
 	}
-	if mapOut, ok := data.(Volume); ok {
+	if mapOut, ok := data.(volumeMap); ok {
 		out = mapOut
 		return
 	}
-	if mapOutRef, ok := data.(*Volume); ok {
+	if mapOutRef, ok := data.(*volumeMap); ok {
 		out = *mapOutRef
 		return
 	}
@@ -193,7 +198,7 @@ func ExecSQLTpl(volume VolumeInterface, templateName string) string {
 	return "" // 符合模板函数，至少一个输出结构
 }
 
-func Transfer(volume Volume, dstSchema string) (interface{}, error) {
+func Transfer(volume volumeMap, dstSchema string) (interface{}, error) {
 	return nil, nil
 }
 
@@ -212,10 +217,21 @@ func JsonSchema2Path(jsonschema string) (TransferPaths, error) {
 
 //TransferFiledToVolume 根据TransferPaths 提炼数据到volume 根节点下，主要用于不同接口间输入输出数据的承接
 func TransferFiledToVolume(volume VolumeInterface, p TransferPaths) {
-
+	data, err := TransferDataFromVolume(volume, p)
+	if err != nil {
+		panic(err)
+	}
+	var input map[string]interface{}
+	err = json.Unmarshal([]byte(data), &input)
+	if err != nil {
+		panic(err)
+	}
+	for k, v := range input {
+		volume.SetValue(k, v)
+	}
 }
 
-func TransferData(volume VolumeInterface, transferPaths TransferPaths) (string, error) {
+func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths) (string, error) {
 	out := ""
 	for _, tp := range transferPaths {
 		var v interface{}
@@ -225,73 +241,89 @@ func TransferData(volume VolumeInterface, transferPaths TransferPaths) (string, 
 			err := errors.Errorf("not found %s data from volume %#v", tp.Src, volume)
 			return "", err
 		}
-		if strings.Contains(tp.Dst, "#") {
-			arr, ok := v.([]interface{})
-			if !ok {
-				err = errors.Errorf("")
-				return "", err
-			}
-			if len(arr) == 0 {
-				keyArr := strings.SplitN(tp.Dst, "#", 2)
-				arrKey := keyArr[0]
-				if gjson.Get(out, arrKey).Exists() {
-					continue
-				}
-				out, err = sjson.Set(out, arrKey, "[]")
-				if err != nil {
-					err = errors.WithStack(err)
-					return "", err
-				}
-				continue
-			}
-			for index, val := range arr {
-				path := strings.ReplaceAll(tp.Dst, "#", strconv.Itoa(index))
-				out, err = sjson.Set(out, path, val)
-				if err != nil {
-					err = errors.WithStack(err)
-					return "", err
-				}
-			}
-			continue
-
-		}
-		var realV interface{}
-		realV = v //set default v with string type
-		if tp.DstType != "" {
-			strArr := make([]string, 0)
-			intArr := make([]int, 0)
-			int64Arr := make([]int64, 0)
-			switch tp.DstType {
-			case reflect.String.String():
-				realV = ""
-			case reflect.Int.String():
-				realV = 0
-			case reflect.Int64.String():
-				realV = int64(0)
-			case reflect.Uint.String():
-				realV = uint(0)
-			case reflect.Uint64.String():
-				realV = uint64(0)
-			case reflect.Float64.String():
-				realV = float64(0)
-			case reflect.Bool.String():
-				realV = false
-			case reflect.TypeOf(strArr).String():
-				realV = strArr
-			case reflect.TypeOf(intArr).String():
-				realV = intArr
-			case reflect.TypeOf(int64Arr).String():
-				realV = int64Arr
-			case reflect.Array.String(), reflect.Slice.String():
-				realV = make([]interface{}, 0)
-			}
-			tp.ConvertType(&realV)
-		}
-		out, err = sjson.Set(out, tp.Dst, realV)
+		err = TransferData(&out, tp.Dst, tp.DstType, v)
 		if err != nil {
-			err = errors.WithStack(err)
 			return "", err
 		}
 	}
 	return out, nil
+}
+
+//TransferData 数据转换
+func TransferData(s *string, dstPath string, dstType string, v interface{}) error {
+	var err error
+	if strings.Contains(dstPath, "#") {
+		arr, ok := v.([]interface{})
+		if !ok {
+			err = errors.Errorf("")
+			return err
+		}
+		if len(arr) == 0 {
+			keyArr := strings.SplitN(dstPath, "#", 2)
+			arrKey := keyArr[0]
+			if gjson.Get(*s, arrKey).Exists() {
+				return nil
+			}
+			*s, err = sjson.Set(*s, arrKey, "[]")
+			if err != nil {
+				err = errors.WithStack(err)
+				return err
+			}
+			return nil
+		}
+		for index, val := range arr {
+			path := strings.ReplaceAll(dstPath, "#", strconv.Itoa(index))
+			*s, err = sjson.Set(*s, path, val)
+			if err != nil {
+				err = errors.WithStack(err)
+				return err
+			}
+		}
+		return nil
+	}
+
+	var realV interface{}
+	realV = v //set default v with interface{} type
+	if dstType == "" {
+		*s, err = sjson.Set(*s, dstPath, realV)
+		if err != nil {
+			err = errors.WithStack(err)
+			return err
+		}
+		return nil
+	}
+	strArr := make([]string, 0)
+	intArr := make([]int, 0)
+	int64Arr := make([]int64, 0)
+	switch dstType {
+	case reflect.String.String():
+		realV = ""
+	case reflect.Int.String():
+		realV = 0
+	case reflect.Int64.String():
+		realV = int64(0)
+	case reflect.Uint.String():
+		realV = uint(0)
+	case reflect.Uint64.String():
+		realV = uint64(0)
+	case reflect.Float64.String():
+		realV = float64(0)
+	case reflect.Bool.String():
+		realV = false
+	case reflect.TypeOf(strArr).String():
+		realV = strArr
+	case reflect.TypeOf(intArr).String():
+		realV = intArr
+	case reflect.TypeOf(int64Arr).String():
+		realV = int64Arr
+	case reflect.Array.String(), reflect.Slice.String():
+		realV = make([]interface{}, 0)
+	}
+	convertType(&realV, v)
+	*s, err = sjson.Set(*s, dstPath, realV)
+	if err != nil {
+		err = errors.WithStack(err)
+		return err
+	}
+	return nil
 }

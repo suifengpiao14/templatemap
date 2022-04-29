@@ -24,24 +24,33 @@ type VolumeInterface interface {
 	GetValue(key string, value interface{}) (ok bool)
 }
 
-type Volume map[string]interface{}
+func NewVolume(r RepositoryInterface) VolumeInterface {
+	return &volumeMap{
+		REPOSITORY_KEY: r,
+	}
+}
 
-func (v *Volume) init() {
+// 私有定义，确保对volumeMap 的操作全部通过 get/set 函数实现
+type volumeMap map[string]interface{}
+
+func (v *volumeMap) init() {
 	if v == nil {
 		err := errors.Errorf("*Templatemap must init")
 		panic(err)
 	}
 	if *v == nil {
-		*v = Volume{} // 解决 data33 情况
+		*v = volumeMap{} // 解决 data33 情况
 	}
 }
 
-func (v *Volume) SetValue(key string, value interface{}) {
+func (v *volumeMap) SetValue(key string, value interface{}) {
 	v.init()
 	(*v)[key] = value // todo 并发lock
+	//r:=getRepositoryFromVolume(v)
+
 }
 
-func (v *Volume) GetValue(key string, value interface{}) bool {
+func (v *volumeMap) GetValue(key string, value interface{}) bool {
 	v.init()
 
 	tmp, ok := getValue(v, key)
@@ -50,10 +59,9 @@ func (v *Volume) GetValue(key string, value interface{}) bool {
 	}
 	ok = convertType(value, tmp)
 	return ok
-
 }
 
-func getValue(v *Volume, key string) (interface{}, bool) {
+func getValue(v *volumeMap, key string) (interface{}, bool) {
 	var mapKey string
 	var jsonKey string
 	var value interface{}
@@ -123,7 +131,7 @@ func convertType(dst interface{}, src interface{}) bool {
 		panic(err)
 	}
 	rvT := rv.Type()
-	rTmp := reflect.Indirect(reflect.ValueOf(src))
+	rTmp := reflect.ValueOf(src)
 	if rTmp.CanConvert(rvT) {
 		rv.Set(rTmp.Convert(rvT))
 		return true
@@ -163,8 +171,8 @@ func convertType(dst interface{}, src interface{}) bool {
 		rv.SetBool(srcBool)
 		return true
 	}
-
-	panic("can not get value")
+	err := errors.Errorf("can not convert %v to %t", src, dst)
+	panic(err)
 }
 
 type ExecproviderInterface interface {
@@ -178,6 +186,13 @@ func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
 	return f(identifier, s)
 }
 
+type TemplateMeta struct {
+	Name         string
+	ExecProvider ExecproviderInterface
+	InputSchema  TransferPaths
+	OutputSchema TransferPaths
+}
+
 type RepositoryInterface interface {
 	AddTemplateByDir(dir string) (addTplNames []string)
 	AddTemplateByFS(fsys fs.FS, root string) (addTplNames []string)
@@ -185,19 +200,19 @@ type RepositoryInterface interface {
 	GetTemplate() *template.Template
 	ExecuteTemplate(name string, volume VolumeInterface) (out string, err error)
 	TemplateExists(name string) bool
-	RegisterProvider(provider ExecproviderInterface, tplNames ...string)
-	GetProvider(tplName string) (ExecproviderInterface, bool)
+	RegisterMeta(tplName string, meta *TemplateMeta)
+	GetMeta(tplName string) (*TemplateMeta, bool)
 }
 
 type repository struct {
-	template     *template.Template
-	providerPool map[string]ExecproviderInterface
+	template *template.Template
+	metaMap  map[string]*TemplateMeta
 }
 
 func NewRepository() RepositoryInterface {
 	r := &repository{
-		template:     newTemplate(),
-		providerPool: make(map[string]ExecproviderInterface),
+		template: newTemplate(),
+		metaMap:  make(map[string]*TemplateMeta),
 	}
 	return r
 }
@@ -206,15 +221,13 @@ func newTemplate() *template.Template {
 	return template.New("").Funcs(CoreFuncMap).Funcs(TemplatefuncMap).Funcs(sprig.TxtFuncMap())
 }
 
-func (r *repository) RegisterProvider(providor ExecproviderInterface, tplNames ...string) {
-	for _, tplName := range tplNames {
-		r.providerPool[tplName] = providor
-	}
+func (r *repository) RegisterMeta(tplName string, meta *TemplateMeta) {
+	r.metaMap[tplName] = meta
 }
 
-func (r *repository) GetProvider(tplName string) (ExecproviderInterface, bool) {
-	provider, ok := r.providerPool[tplName]
-	return provider, ok
+func (r *repository) GetMeta(tplName string) (*TemplateMeta, bool) {
+	meta, ok := r.metaMap[tplName]
+	return meta, ok
 }
 
 func (r *repository) GetTemplate() *template.Template {
@@ -265,7 +278,7 @@ func (r *repository) AddTemplateByStr(name string, s string) []string {
 
 func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) (string, error) {
 	if volume == nil {
-		volume = &Volume{}
+		volume = &volumeMap{}
 	} else {
 		volumeR := reflect.ValueOf(volume)
 		if volumeR.IsNil() {
@@ -274,7 +287,6 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) (strin
 
 		}
 	}
-	volume.SetValue(REPOSITORY_KEY, r) // 将模板传入，方便在模板中执行模板
 	var b bytes.Buffer
 	err := r.template.ExecuteTemplate(&b, name, volume)
 	if err != nil {

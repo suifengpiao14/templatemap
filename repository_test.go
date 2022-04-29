@@ -9,8 +9,14 @@ func TestRepository(t *testing.T) {
 	r := NewRepository()
 	tplnames := r.AddTemplateByDir(".")
 	provider := &DBExecProvider{Config: DBExecProviderConfig{LogLevel: LOG_LEVEL_DEBUG, DSN: "hjx:123456@tcp(106.53.100.222:3306)/docapi?charset=utf8&timeout=1s&readTimeout=5s&writeTimeout=5s&parseTime=False&loc=Local&multiStatements=true"}}
-	r.RegisterProvider(provider, tplnames...)
-	volume := Volume{
+	for _, tplName := range tplnames {
+		meta := TemplateMeta{
+			Name:         tplName,
+			ExecProvider: provider,
+		}
+		r.RegisterMeta(tplName, &meta)
+	}
+	volume := volumeMap{
 		"PageIndex": "0",
 		"PageSize":  "20",
 	}
@@ -26,7 +32,7 @@ func TestRepository(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	out, err := TransferData(&volume, paths)
+	out, err := TransferDataFromVolume(&volume, paths)
 	if err != nil {
 		panic(err)
 	}

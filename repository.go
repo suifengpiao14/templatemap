@@ -130,13 +130,10 @@ func convertType(dst interface{}, src interface{}) bool {
 		err := errors.Errorf("dst :%#v reflect.CanSet() must return  true", dst)
 		panic(err)
 	}
-	rvT := rv.Type()
-	rTmp := reflect.ValueOf(src)
-	if rTmp.CanConvert(rvT) {
-		rv.Set(rTmp.Convert(rvT))
-		return true
-	}
+
 	srcStr := strval(src)
+	rvT := rv.Type()
+
 	switch rvT.Kind() {
 	case reflect.Int:
 		srcInt, err := strconv.Atoi(srcStr)
@@ -169,6 +166,12 @@ func convertType(dst interface{}, src interface{}) bool {
 			panic(err)
 		}
 		rv.SetBool(srcBool)
+		return true
+	}
+	rTmp := reflect.ValueOf(src)
+	if rTmp.CanConvert(rvT) {
+		realValue := rTmp.Convert(rvT)
+		rv.Set(realValue)
 		return true
 	}
 	err := errors.Errorf("can not convert %v to %t", src, dst)

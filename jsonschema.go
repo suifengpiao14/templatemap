@@ -81,15 +81,29 @@ type Schema struct {
 	// json schema 生成的json data 路径
 	DataPath    string `json:"-"`
 	DataPathSrc string `json:"src"`
+	//来源和目标的路径是否一致（入参格式化时，非常有用）
+	DstAsSrc bool `json:"-"`
 
 	// calculated struct name of this object, cached here
 	GeneratedType string `json:"-"`
+	isInit        bool
+}
+
+func NewJsonSchema(jsonSchema string) *Schema {
+	var schema Schema
+	err := json.Unmarshal([]byte(jsonSchema), &schema)
+	if err != nil {
+		err = errors.WithMessage(err, "jsonschema.NewSchema")
+		panic(err)
+	}
+	return &schema
 }
 
 type TransferPath struct {
 	Src     string
 	Dst     string
 	DstType string
+	Default interface{}
 }
 
 func (t *TransferPath) ConvertType(dest interface{}) {
@@ -283,6 +297,9 @@ func ParseWithSchemaKeyRequired(schema string, uri *url.URL, schemaKeyRequired b
 
 // Init schema.
 func (schema *Schema) Init() {
+	if schema.isInit {
+		return
+	}
 	root := schema.GetRoot()
 	root.updateParentLinks()
 	root.ensureSchemaKeyword()
@@ -294,28 +311,22 @@ func TrimDot(s string) string {
 	return strings.Trim(s, ".")
 }
 
+//GetTransferPaths 从json schema 中获取路径映射
 func (schema *Schema) GetTransferPaths() TransferPaths {
+	schema.Init()
 	out := make(TransferPaths, 0)
 	transferPath := TransferPath{
-		Dst: TrimDot(schema.DataPath),
-		Src: TrimDot(schema.DataPathSrc),
+		Dst:     TrimDot(schema.DataPath),
+		Src:     TrimDot(schema.DataPathSrc),
+		DstType: fmt.Sprintf("%v", schema.TypeValue),
+		Default: schema.Default,
 	}
 	out = append(out, &transferPath)
 	for _, p := range schema.Properties {
-		transferPath := TransferPath{
-			Dst: TrimDot(p.DataPath),
-			Src: TrimDot(p.DataPathSrc),
-		}
-		out = append(out, &transferPath)
 		subOut := p.GetTransferPaths()
 		out = append(out, subOut...)
 	}
 	if schema.Items != nil {
-		transferPath := TransferPath{
-			Dst: TrimDot(schema.Items.DataPath),
-			Src: TrimDot(schema.Items.DataPathSrc),
-		}
-		out = append(out, &transferPath)
 		subOut := schema.Items.GetTransferPaths()
 		out = append(out, subOut...)
 	}
@@ -351,13 +362,22 @@ func (schema *Schema) updatePathElements() {
 func (schema *Schema) updateDataPaths() {
 	if schema.IsRoot() {
 		schema.DataPath = ""
+		if schema.DstAsSrc {
+			schema.DataPathSrc = schema.DataPath
+		}
 	}
 
 	for k, p := range schema.Properties {
 		if schema.Parent == nil {
 			p.DataPath = k
+			if schema.DstAsSrc {
+				p.DataPathSrc = p.DataPath
+			}
 		} else {
 			p.DataPath = fmt.Sprintf("%s.%s", schema.DataPath, k)
+			if schema.DstAsSrc {
+				p.DataPathSrc = p.DataPath
+			}
 		}
 
 		p.updateDataPaths()
@@ -365,6 +385,9 @@ func (schema *Schema) updateDataPaths() {
 
 	if schema.Items != nil {
 		schema.Items.DataPath = fmt.Sprintf("%s.#", schema.DataPath)
+		if schema.DstAsSrc {
+			schema.Items.DataPathSrc = schema.Items.DataPath
+		}
 		schema.Items.updateDataPaths()
 	}
 }

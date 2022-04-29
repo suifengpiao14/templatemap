@@ -202,19 +202,6 @@ func Transfer(volume volumeMap, dstSchema string) (interface{}, error) {
 	return nil, nil
 }
 
-func JsonSchema2Path(jsonschema string) (TransferPaths, error) {
-	var schema Schema
-	err := json.Unmarshal([]byte(jsonschema), &schema)
-	if err != nil {
-		return nil, err
-	}
-	schema.Init()
-	out := schema.GetTransferPaths()
-
-	return out, nil
-
-}
-
 //TransferFiledToVolume 根据TransferPaths 提炼数据到volume 根节点下，主要用于不同接口间输入输出数据的承接
 func TransferFiledToVolume(volume VolumeInterface, p TransferPaths) {
 	data, err := TransferDataFromVolume(volume, p)
@@ -240,6 +227,25 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 		if !ok {
 			err := errors.Errorf("not found %s data from volume %#v", tp.Src, volume)
 			return "", err
+		}
+		err = TransferData(&out, tp.Dst, tp.DstType, v)
+		if err != nil {
+			return "", err
+		}
+	}
+	return out, nil
+}
+
+func TransferJson(input string, transferPaths TransferPaths) (string, error) {
+	out := ""
+	for _, tp := range transferPaths {
+		var v interface{}
+		var err error
+		result := gjson.Get(input, tp.Src)
+		if !result.Exists() {
+			v = tp.Default
+		} else {
+			v = result.String()
 		}
 		err = TransferData(&out, tp.Dst, tp.DstType, v)
 		if err != nil {
@@ -298,7 +304,7 @@ func TransferData(s *string, dstPath string, dstType string, v interface{}) erro
 	switch dstType {
 	case reflect.String.String():
 		realV = ""
-	case reflect.Int.String():
+	case reflect.Int.String(), "integer":
 		realV = 0
 	case reflect.Int64.String():
 		realV = int64(0)

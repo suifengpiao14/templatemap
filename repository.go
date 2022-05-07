@@ -130,8 +130,10 @@ func convertType(dst interface{}, src interface{}) bool {
 		err := errors.Errorf("dst :%#v reflect.CanSet() must return  true", dst)
 		panic(err)
 	}
-
-	rvT := rv.Elem().Type()
+	rvT := rv.Type()
+	if rv.Elem() != reflect.ValueOf(nil) {
+		rvT = rv.Elem().Type()
+	}
 
 	rTmp := reflect.ValueOf(src)
 	if rTmp.CanConvert(rvT) {

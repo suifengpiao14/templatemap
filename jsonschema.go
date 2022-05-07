@@ -133,6 +133,9 @@ func (t TransferPaths) Valid() TransferPaths {
 	out := TransferPaths{}
 	keyMap := make(map[string]*TransferPath)
 	for _, tp := range t {
+		if tp.Dst == "" {
+			continue
+		}
 		keyMap[tp.Dst] = tp
 	}
 

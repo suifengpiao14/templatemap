@@ -39,6 +39,9 @@ type Schema struct {
 	// http://json-schema.org/draft-07/json-schema-validation.html#rfc.section.6.5
 	Properties map[string]*Schema
 	Required   []string
+	// 当前属性是否为必须
+	IsRequired   bool
+	TransferPath *TransferPath `json:"-"` // 挂载TransferPath
 
 	// "additionalProperties": {...}
 	AdditionalProperties *AdditionalProperties
@@ -83,6 +86,8 @@ type Schema struct {
 	DataPathSrc string `json:"src"`
 	//来源和目标的路径是否一致（入参格式化时，非常有用）
 	DstAsSrc bool `json:"-"`
+	// 是否容许为空
+	AllowEmpty bool `json:"allowEmpty"`
 
 	// calculated struct name of this object, cached here
 	GeneratedType string `json:"-"`
@@ -100,10 +105,13 @@ func NewJsonSchema(jsonSchema string) *Schema {
 }
 
 type TransferPath struct {
-	Src     string
-	Dst     string
-	DstType string
-	Default interface{}
+	Src        string
+	Dst        string
+	DstType    string
+	Default    interface{}
+	AllowEmpty bool
+	IsRequired bool
+	Parent     *TransferPath
 }
 
 func (t *TransferPath) ConvertType(dest interface{}) {
@@ -112,6 +120,20 @@ func (t *TransferPath) ConvertType(dest interface{}) {
 		err := errors.Errorf("src: %s can`t convert to dest type: %t", t.Src, dest)
 		panic(err)
 	}
+}
+
+//Optional 获取链路中可选字段
+func (t *TransferPath) GetOptionalTransferPath() *TransferPath {
+	if t.IsRequired == false {
+		return t
+	}
+	parent := t.Parent
+	for parent != nil {
+		if parent.IsRequired == false || parent.AllowEmpty == true {
+			return parent
+		}
+	}
+	return nil
 }
 
 type TransferPaths []*TransferPath
@@ -314,16 +336,50 @@ func TrimDot(s string) string {
 	return strings.Trim(s, ".")
 }
 
+func IsRequired(arr []string, ele string) bool {
+	if ele == "" {
+		return false
+	}
+	for _, element := range arr {
+		if ele == element {
+			return true
+		}
+	}
+	return false
+}
+
+func (schema *Schema) GetName() string {
+	var name = schema.PathElement
+	lastSlashIndex := strings.LastIndex(name, "/")
+	if lastSlashIndex > -1 {
+		name = schema.PathElement[lastSlashIndex+1:]
+	}
+	lastpIndex := strings.LastIndex(name, "#")
+	if lastpIndex > -1 {
+		name = schema.PathElement[lastpIndex+1:]
+	}
+	return name
+}
+
 //GetTransferPaths 从json schema 中获取路径映射
 func (schema *Schema) GetTransferPaths() TransferPaths {
 	schema.Init()
 	out := make(TransferPaths, 0)
-	transferPath := TransferPath{
-		Dst:     TrimDot(schema.DataPath),
-		Src:     TrimDot(schema.DataPathSrc),
-		DstType: fmt.Sprintf("%v", schema.TypeValue),
-		Default: schema.Default,
+	requiredArr := make([]string, 0)
+	requiredArr = append(requiredArr, schema.Required...)
+	if schema.Parent != nil {
+		requiredArr = append(requiredArr, schema.Parent.Required...)
 	}
+
+	transferPath := TransferPath{
+		Dst:        TrimDot(schema.DataPath),
+		Src:        TrimDot(schema.DataPathSrc),
+		DstType:    fmt.Sprintf("%v", schema.TypeValue),
+		Default:    schema.Default,
+		AllowEmpty: schema.AllowEmpty,
+		IsRequired: IsRequired(requiredArr, schema.GetName()),
+	}
+	schema.TransferPath = &transferPath
 	out = append(out, &transferPath)
 	for _, p := range schema.Properties {
 		subOut := p.GetTransferPaths()

@@ -88,11 +88,11 @@ func getValue(v *volumeMap, key string) (interface{}, bool) {
 	if !ok {
 		return nil, false
 	}
-	jsonValue, ok := getValueFromJson(jsonStr, jsonKey)
+	jsonValue, ok := GetValueFromJson(jsonStr, jsonKey)
 	return jsonValue, ok
 }
 
-func getValueFromJson(jsonStr string, jsonKey string) (interface{}, bool) {
+func GetValueFromJson(jsonStr string, jsonKey string) (interface{}, bool) {
 	if jsonStr == "" {
 		return nil, false
 	}
@@ -118,7 +118,7 @@ func getValueFromJson(jsonStr string, jsonKey string) (interface{}, bool) {
 		return value.Value(), value.Exists()
 	}
 
-	return getValueFromJson(value.Str, jsonKey[len(key)+1:])
+	return GetValueFromJson(value.Str, jsonKey[len(key)+1:])
 }
 
 func convertType(dst interface{}, src interface{}) bool {

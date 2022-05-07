@@ -225,10 +225,14 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 		var err error
 		ok := volume.GetValue(tp.Src, &v)
 		if !ok {
-			err := errors.Errorf("not found %s data from volume %#v", tp.Src, volume)
-			return "", err
+			optionalTp := tp.GetOptionalTransferPath()
+			if optionalTp == nil {
+				err := errors.Errorf("not found %s data from volume %#v", tp.Src, volume)
+				return "", err
+			}
+			continue
 		}
-		err = TransferData(&out, tp.Dst, tp.DstType, v)
+		err = Add2json(&out, tp.Dst, tp.DstType, v)
 		if err != nil {
 			return "", err
 		}
@@ -236,6 +240,7 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 	return out, nil
 }
 
+// 从json字符串中提取部分值，形成新的json字符串
 func TransferJson(input string, transferPaths TransferPaths) (string, error) {
 	out := ""
 	for _, tp := range transferPaths {
@@ -247,7 +252,7 @@ func TransferJson(input string, transferPaths TransferPaths) (string, error) {
 		} else {
 			v = result.String()
 		}
-		err = TransferData(&out, tp.Dst, tp.DstType, v)
+		err = Add2json(&out, tp.Dst, tp.DstType, v)
 		if err != nil {
 			return "", err
 		}
@@ -255,12 +260,12 @@ func TransferJson(input string, transferPaths TransferPaths) (string, error) {
 	return out, nil
 }
 
-//TransferData 数据转换
-func TransferData(s *string, dstPath string, dstType string, v interface{}) error {
+//Add2json 数据转换(将go数据写入到json字符串中)
+func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 	var err error
 	if strings.Contains(dstPath, "#") {
 		arr, ok := v.([]interface{})
-		if !ok {
+		if !ok { // todo 此处只考虑了，从json字符串中提取数据，在设置到新的json字符串方式，对于
 			err = errors.Errorf("")
 			return err
 		}

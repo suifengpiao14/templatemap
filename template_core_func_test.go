@@ -19,7 +19,7 @@ func TestJsonSchema2Path(t *testing.T) {
 func TestTransferData(t *testing.T) {
 	out := ""
 	v := "0"
-	err := TransferData(&out, "pageIndex", "integer", v)
+	err := Add2json(&out, "pageIndex", "integer", v)
 	if err != nil {
 		panic(err)
 	}

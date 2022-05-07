@@ -84,8 +84,6 @@ type Schema struct {
 	// json schema 生成的json data 路径
 	DataPath    string `json:"-"`
 	DataPathSrc string `json:"src"`
-	//来源和目标的路径是否一致（入参格式化时，非常有用）
-	DstAsSrc bool `json:"-"`
 	// 是否容许为空
 	AllowEmpty bool `json:"allowEmpty"`
 
@@ -421,22 +419,13 @@ func (schema *Schema) updatePathElements() {
 func (schema *Schema) updateDataPaths() {
 	if schema.IsRoot() {
 		schema.DataPath = ""
-		if schema.DstAsSrc {
-			schema.DataPathSrc = schema.DataPath
-		}
 	}
 
 	for k, p := range schema.Properties {
 		if schema.Parent == nil {
 			p.DataPath = k
-			if schema.DstAsSrc {
-				p.DataPathSrc = p.DataPath
-			}
 		} else {
 			p.DataPath = fmt.Sprintf("%s.%s", schema.DataPath, k)
-			if schema.DstAsSrc {
-				p.DataPathSrc = p.DataPath
-			}
 		}
 
 		p.updateDataPaths()
@@ -444,9 +433,6 @@ func (schema *Schema) updateDataPaths() {
 
 	if schema.Items != nil {
 		schema.Items.DataPath = fmt.Sprintf("%s.#", schema.DataPath)
-		if schema.DstAsSrc {
-			schema.Items.DataPathSrc = schema.Items.DataPath
-		}
 		schema.Items.updateDataPaths()
 	}
 }

@@ -272,6 +272,7 @@ func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 		if len(arr) == 0 {
 			keyArr := strings.SplitN(dstPath, "#", 2)
 			arrKey := keyArr[0]
+			arrKey = strings.Trim(arrKey, ".")
 			if gjson.Get(*s, arrKey).Exists() {
 				return nil
 			}

@@ -93,9 +93,6 @@ func getValue(v *volumeMap, key string) (interface{}, bool) {
 }
 
 func GetValueFromJson(jsonStr string, jsonKey string) (interface{}, bool) {
-	if jsonKey[0] == '#' {
-		jsonKey = jsonKey[1:]
-	}
 	if jsonStr == "" {
 		return nil, false
 	}

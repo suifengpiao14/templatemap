@@ -131,9 +131,9 @@ func convertType(dst interface{}, src interface{}) bool {
 		panic(err)
 	}
 	rvT := rv.Type()
-	if rv.Elem() != reflect.ValueOf(nil) {
+	/* 	if rv.Elem() != reflect.ValueOf(nil) { 暂时注释，不知道开始应用于哪个场景
 		rvT = rv.Elem().Type()
-	}
+	} */
 
 	rTmp := reflect.ValueOf(src)
 	if rTmp.CanConvert(rvT) {

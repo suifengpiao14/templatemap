@@ -122,13 +122,21 @@ func (t *TransferPath) ConvertType(dest interface{}) {
 
 //Optional 获取链路中可选字段
 func (t *TransferPath) GetOptionalTransferPath() *TransferPath {
-	if t.IsRequired == false {
-		return t
+	tp := t
+	if tp.IsRequired == false {
+		return tp
 	}
-	parent := t.Parent
-	for parent != nil {
-		if parent.IsRequired == false || parent.AllowEmpty == true {
-			return parent
+	for true {
+		tp = tp.Parent
+		if tp == nil {
+			break
+		}
+		l := len(tp.Dst)
+		if l > 1 && tp.Dst[l-1:] == "#" { // parent 中收集了 items.# 这种类型，其Src为空，需要过滤
+			continue
+		}
+		if tp.IsRequired == false || tp.AllowEmpty == true {
+			return tp
 		}
 	}
 	return nil
@@ -376,6 +384,9 @@ func (schema *Schema) GetTransferPaths() TransferPaths {
 		Default:    schema.Default,
 		AllowEmpty: schema.AllowEmpty,
 		IsRequired: IsRequired(requiredArr, schema.GetName()),
+	}
+	if schema.Parent != nil {
+		transferPath.Parent = schema.Parent.TransferPath
 	}
 	schema.TransferPath = &transferPath
 	out = append(out, &transferPath)

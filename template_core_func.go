@@ -223,6 +223,8 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 	for _, tp := range transferPaths {
 		var v interface{}
 		var err error
+		var dst = tp.Dst
+		var dstType = tp.DstType
 		ok := volume.GetValue(tp.Src, &v)
 		if !ok {
 			optionalTp := tp.GetOptionalTransferPath()
@@ -230,9 +232,8 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 				err := errors.Errorf("not found %s data from volume %#v", tp.Src, volume)
 				return "", err
 			}
-			continue
 		}
-		err = Add2json(&out, tp.Dst, tp.DstType, v)
+		err = Add2json(&out, dst, dstType, v)
 		if err != nil {
 			return "", err
 		}
@@ -263,10 +264,17 @@ func TransferJson(input string, transferPaths TransferPaths) (string, error) {
 //Add2json 数据转换(将go数据写入到json字符串中)
 func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 	var err error
+	var arr []interface{}
+	var ok bool
 	if strings.Contains(dstPath, "#") {
-		arr, ok := v.([]interface{})
+		if v == nil {
+			ok = true
+			arr = make([]interface{}, 0)
+		} else {
+			arr, ok = v.([]interface{})
+		}
 		if !ok { // todo 此处只考虑了，从json字符串中提取数据，在设置到新的json字符串方式，对于
-			err = errors.Errorf("")
+			err = errors.Errorf("Add2json func err , excepted array ,got %#v", v)
 			return err
 		}
 		if len(arr) == 0 {
@@ -276,7 +284,7 @@ func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 			if gjson.Get(*s, arrKey).Exists() {
 				return nil
 			}
-			*s, err = sjson.Set(*s, arrKey, "[]")
+			*s, err = sjson.Set(*s, arrKey, make([]interface{}, 0))
 			if err != nil {
 				err = errors.WithStack(err)
 				return err

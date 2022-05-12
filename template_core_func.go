@@ -180,7 +180,7 @@ func ExecSQLTpl(volume VolumeInterface, templateName string) string {
 	tplOut := ExecuteTemplate(volume, templateName)
 	tplOut = StandardizeSpaces(tplOut)
 	if tplOut == "" {
-		err := errors.Errorf("template :%s output empty", tplOut)
+		err := errors.Errorf("template :%s return empty sql", tplOut)
 		panic(err)
 	}
 	sql, err := ToSQL(volume, tplOut)

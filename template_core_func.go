@@ -27,6 +27,7 @@ var CoreFuncMap = template.FuncMap{
 	"sjsonSet":        sjson.Set,
 	"sjsonSetRaw":     sjson.SetRaw,
 	"transfer":        Transfer,
+	"setDBValidate":   SetDBValidate,
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -51,6 +52,12 @@ func ExecuteTemplate(volume VolumeInterface, name string) string {
 }
 
 func SetValue(volume VolumeInterface, key string, value interface{}) string { // SetValue 返回空字符，不对模板产生新输出
+	volume.SetValue(key, value)
+	return ""
+}
+
+func SetDBValidate(volume VolumeInterface, key string, ok bool, msg string) string {
+	value := fmt.Sprintf(`{"ok":%v,"msg":"%s"}`, ok, msg)
 	volume.SetValue(key, value)
 	return ""
 }
@@ -242,7 +249,7 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 }
 
 // 从json字符串中提取部分值，形成新的json字符串
-func TransferJson(input string, transferPaths TransferPaths) (string, error) {
+func TransferJson(volume VolumeInterface, input string, transferPaths TransferPaths) (string, error) {
 	out := ""
 	for _, tp := range transferPaths {
 		var v interface{}
@@ -252,6 +259,20 @@ func TransferJson(input string, transferPaths TransferPaths) (string, error) {
 			v = tp.Default
 		} else {
 			v = result.String()
+		}
+		if tp.Transfer != "" {
+			r := getRepositoryFromVolume(volume)
+			tplName := fmt.Sprintf("%s%s", tp.Dst, "Transfer")
+			ok := r.TemplateExists(tplName)
+			if !ok {
+				r.AddTemplateByStr(tplName, tp.Transfer)
+			}
+			volume.SetValue(tp.Src, v)
+			out, err := r.ExecuteTemplate(tplName, volume)
+			if err != nil {
+				return "", err
+			}
+			v = TrimSpaces(out)
 		}
 		err = Add2json(&out, tp.Dst, tp.DstType, v)
 		if err != nil {

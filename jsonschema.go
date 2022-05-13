@@ -84,6 +84,7 @@ type Schema struct {
 	// json schema 生成的json data 路径
 	DataPath    string `json:"-"`
 	DataPathSrc string `json:"src"`
+	Transfer    string `json:"transfer"` // 数据转换表达式
 	// 是否容许为空
 	AllowEmpty bool `json:"allowEmpty"`
 
@@ -109,6 +110,7 @@ type TransferPath struct {
 	Default    interface{}
 	AllowEmpty bool
 	IsRequired bool
+	Transfer   string
 	Parent     *TransferPath
 }
 
@@ -383,6 +385,7 @@ func (schema *Schema) GetTransferPaths() TransferPaths {
 		DstType:    fmt.Sprintf("%v", schema.TypeValue),
 		Default:    schema.Default,
 		AllowEmpty: schema.AllowEmpty,
+		Transfer:   schema.Transfer,
 		IsRequired: IsRequired(requiredArr, schema.GetName()),
 	}
 	if schema.Parent != nil {

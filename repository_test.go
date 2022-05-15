@@ -20,10 +20,14 @@ func TestRepository(t *testing.T) {
 		"PageIndex": "0",
 		"PageSize":  "20",
 	}
-	execOut, err := r.ExecuteTemplate("getPaginate", &volume)
+	tplName := "getPaginate"
+	err := r.ExecuteTemplate(tplName, &volume)
 	if err != nil {
 		panic(err)
 	}
+	key := fmt.Sprintf("%sOut", tplName)
+	var execOut string
+	volume.GetValue(key, &execOut)
 	fmt.Println(execOut)
 
 	jsonschema := `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{"sourceId":{"type":"string","src":"PaginateOut.#.api_id"},"sourceType":{"type":"string","src":"PaginateOut.#.name"},"url":{"type":"string","src":"PaginateOut.#.url"},"createTime":{"type":"string","src":"PaginateOut.#.created_at"},"updateTime":{"type":"string","src":"PaginateOut.#.updated_at"}},"required":["sourceId","sourceType","url","createTime","updateTime"]}},"pagination":{"type":"object","properties":{"total":{"type":"integer","src":"PaginateTotalOut"},"pageIndex":{"type":"string","src":"PageIndex"},"pageSize":{"type":"string","src":"PageSize"}},"required":["total","pageIndex","pageSize"]}},"required":["items","pagination"]}`

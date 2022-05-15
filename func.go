@@ -11,6 +11,7 @@ import (
 	"text/template"
 
 	"github.com/pkg/errors"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // 拷贝template 包helper 方法
@@ -124,4 +125,64 @@ func getTemplateNames(t *template.Template) []string {
 		}
 	}
 	return out
+}
+
+func Validate(input string, jsonschema string) error {
+	schemaLoader := gojsonschema.NewStringLoader(jsonschema)
+	documentLoader := gojsonschema.NewStringLoader(input)
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if err != nil {
+		return err
+	}
+	if result.Valid() {
+		return nil
+	}
+
+	msgArr := make([]string, 0)
+	for _, resultError := range result.Errors() {
+		msgArr = append(msgArr, resultError.String())
+	}
+	err = errors.Errorf("input args validate errors: %s", strings.Join(msgArr, ","))
+	return err
+}
+
+//  数据库验证
+type ValidDBChecker struct {
+	Repository RepositoryInterface
+	TplName    string
+	Volume     VolumeInterface
+}
+
+func (f *ValidDBChecker) IsFormat(input interface{}) bool {
+
+	err := f.Repository.ExecuteTemplate(f.TplName, f.Volume)
+	if err != nil {
+		panic(err)
+	}
+	key := fmt.Sprintf("%sOut.ok", f.TplName)
+	var ok bool
+	f.Volume.GetValue(key, &ok)
+	return ok
+}
+
+func (f *ValidDBChecker) Msg() string {
+	msgKey := fmt.Sprintf("%sOut.msg", f.TplName)
+	var msg string
+	f.Volume.GetValue(msgKey, &msg)
+	return msg
+}
+
+func TransferWithValidate(tplName string, volume VolumeInterface, transferPaths TransferPaths, jsonSchema string) (string, error) {
+	out, err := TransferDataFromVolume(volume, transferPaths)
+	if err != nil {
+		return "", err
+	}
+	// 暂时注释验证，客户端输入，必须在之前验证，内部函数参数，暂时不验证
+	// if jsonSchema != "" {
+	// 	err = Validate(out, jsonSchema)
+	// 	if err != nil {
+	// 		return "", err
+	// 	}
+	// }
+	return out, nil
 }

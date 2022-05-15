@@ -19,6 +19,8 @@ var CoreFuncMap = template.FuncMap{
 	"executeTemplate": ExecuteTemplate,
 	"setValue":        SetValue,
 	"getValue":        GetValue,
+	"getSetValue":     GetSetValue,
+	"getSetValueInt":  GetSetValueInt,
 	"toSQL":           ToSQL,
 	"exec":            Exec,
 	"execSQLTpl":      ExecSQLTpl,
@@ -27,7 +29,8 @@ var CoreFuncMap = template.FuncMap{
 	"sjsonSet":        sjson.Set,
 	"sjsonSetRaw":     sjson.SetRaw,
 	"transfer":        Transfer,
-	"setDBValidate":   SetDBValidate,
+	"DBValidate":      DBValidate,
+	"toBool":          ToBool,
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -43,11 +46,13 @@ func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
 //ExecuteTemplate 模板中调用模板
 func ExecuteTemplate(volume VolumeInterface, name string) string {
 	var r = getRepositoryFromVolume(volume)
-	out, err := r.ExecuteTemplate(name, volume)
+	err := r.ExecuteTemplate(name, volume)
 	if err != nil {
 		panic(err) // ExecuteTemplate 函数可能嵌套很多层，抛出错误值后有可能被当成正常值处理，所以此处直接panic 退出，保留原始错误输出
 	}
-	out = strings.ReplaceAll(out, WINDOW_EOF, EOF)
+	key := fmt.Sprintf("%sOut", name)
+	var out string
+	volume.GetValue(key, &out)
 	return out
 }
 
@@ -56,16 +61,59 @@ func SetValue(volume VolumeInterface, key string, value interface{}) string { //
 	return ""
 }
 
-func SetDBValidate(volume VolumeInterface, key string, ok bool, msg string) string {
+func DBValidateReverse(volume VolumeInterface, ok interface{}, msg string) string {
+	var boolOk bool
+	switch v := ok.(type) {
+	case bool:
+		boolOk = v
+	case string:
+		boolOk = v != "" && v != "false" && v != "0"
+	case int:
+		boolOk = v > 0
+	case int64:
+		boolOk = v > 0
+	}
+	value := fmt.Sprintf(`{"ok":%v,"msg":"%s"}`, !boolOk, msg)
+	return value
+}
+
+func ToBool(v interface{}) bool {
+	var ok bool
+	switch v := v.(type) {
+	case bool:
+		ok = v
+	case string:
+		ok = v != "" && v != "false" && v != "0"
+	case int:
+		ok = v > 0
+	case int64:
+		ok = v > 0
+	}
+	return ok
+
+}
+
+func DBValidate(volume VolumeInterface, ok bool, msg string) string {
 	value := fmt.Sprintf(`{"ok":%v,"msg":"%s"}`, ok, msg)
-	volume.SetValue(key, value)
-	return ""
+	return value
 }
 
 func GetValue(volume VolumeInterface, key string) interface{} {
 	var value interface{}
 	volume.GetValue(key, &value)
 	return value
+}
+
+func GetSetValue(volume VolumeInterface, setKey string, getKey string) string {
+	v := GetValue(volume, getKey)
+	volume.SetValue(setKey, v)
+	return ""
+}
+func GetSetValueInt(volume VolumeInterface, setKey string, getKey string) string {
+	var v int
+	volume.GetValue(getKey, &v)
+	volume.SetValue(setKey, v)
+	return ""
 }
 
 func Exec(volume VolumeInterface, tplName string, s string) string {
@@ -227,6 +275,7 @@ func TransferFiledToVolume(volume VolumeInterface, p TransferPaths) {
 
 func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths) (string, error) {
 	out := ""
+	r := getRepositoryFromVolume(volume)
 	for _, tp := range transferPaths {
 		var v interface{}
 		var err error
@@ -240,41 +289,22 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 				return "", err
 			}
 		}
-		err = Add2json(&out, dst, dstType, v)
-		if err != nil {
-			return "", err
-		}
-	}
-	return out, nil
-}
-
-// 从json字符串中提取部分值，形成新的json字符串
-func TransferJson(volume VolumeInterface, input string, transferPaths TransferPaths) (string, error) {
-	out := ""
-	for _, tp := range transferPaths {
-		var v interface{}
-		var err error
-		result := gjson.Get(input, tp.Src)
-		if !result.Exists() {
-			v = tp.Default
-		} else {
-			v = result.String()
-		}
-		if tp.Transfer != "" {
-			r := getRepositoryFromVolume(volume)
+		if ok && tp.Transfer != "" {
 			tplName := fmt.Sprintf("%s%s", tp.Dst, "Transfer")
 			ok := r.TemplateExists(tplName)
 			if !ok {
 				r.AddTemplateByStr(tplName, tp.Transfer)
 			}
-			volume.SetValue(tp.Src, v)
-			out, err := r.ExecuteTemplate(tplName, volume)
+			err := r.ExecuteTemplate(tplName, volume)
 			if err != nil {
 				return "", err
 			}
+			key := fmt.Sprintf("%sOut", tplName)
+			var out string
+			volume.GetValue(key, &out)
 			v = TrimSpaces(out)
 		}
-		err = Add2json(&out, tp.Dst, tp.DstType, v)
+		err = Add2json(&out, dst, dstType, v)
 		if err != nil {
 			return "", err
 		}

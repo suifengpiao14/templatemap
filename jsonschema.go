@@ -125,10 +125,10 @@ func (t *TransferPath) ConvertType(dest interface{}) {
 //Optional 获取链路中可选字段
 func (t *TransferPath) GetOptionalTransferPath() *TransferPath {
 	tp := t
-	if tp.IsRequired == false {
+	if !tp.IsRequired {
 		return tp
 	}
-	for true {
+	for {
 		tp = tp.Parent
 		if tp == nil {
 			break
@@ -137,7 +137,7 @@ func (t *TransferPath) GetOptionalTransferPath() *TransferPath {
 		if l > 1 && tp.Dst[l-1:] == "#" { // parent 中收集了 items.# 这种类型，其Src为空，需要过滤
 			continue
 		}
-		if tp.IsRequired == false || tp.AllowEmpty == true {
+		if !tp.IsRequired || tp.AllowEmpty {
 			return tp
 		}
 	}

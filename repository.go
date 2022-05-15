@@ -2,6 +2,7 @@ package templatemap
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"reflect"
@@ -15,9 +16,15 @@ import (
 )
 
 const (
-	TPlSuffix      = ".tpl"
-	REPOSITORY_KEY = "__repository"
+	TPlSuffix             = ".tpl"
+	REPOSITORY_KEY        = "__repository"
+	LOGGER_LEVEL_DEBUGGER = "debugger"
+	LOGGER_LEVEL_INFO     = "info"
+	LOGGER_LEVEL_WARNING  = "warning"
+	LOGGER_LEVEL_ERROR    = "error"
 )
+
+var LOGGER_LEVEL = LOGGER_LEVEL_DEBUGGER
 
 type VolumeInterface interface {
 	SetValue(key string, value interface{})
@@ -190,10 +197,12 @@ func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
 }
 
 type TemplateMeta struct {
-	Name         string
-	ExecProvider ExecproviderInterface
-	InputSchema  TransferPaths
-	OutputSchema TransferPaths
+	Name                string
+	ExecProvider        ExecproviderInterface
+	InputSchema         string
+	InputTransferPaths  TransferPaths
+	OutputSchema        string
+	OutputTransferPaths TransferPaths
 }
 
 type RepositoryInterface interface {
@@ -201,7 +210,7 @@ type RepositoryInterface interface {
 	AddTemplateByFS(fsys fs.FS, root string) (addTplNames []string)
 	AddTemplateByStr(name string, s string) (addTplNames []string)
 	GetTemplate() *template.Template
-	ExecuteTemplate(name string, volume VolumeInterface) (out string, err error)
+	ExecuteTemplate(name string, volume VolumeInterface) error
 	TemplateExists(name string) bool
 	RegisterMeta(tplName string, meta *TemplateMeta)
 	GetMeta(tplName string) (*TemplateMeta, bool)
@@ -225,6 +234,16 @@ func newTemplate() *template.Template {
 }
 
 func (r *repository) RegisterMeta(tplName string, meta *TemplateMeta) {
+	if meta != nil {
+		if meta.InputSchema != "" {
+			jsonSchema := NewJsonSchema(meta.InputSchema)
+			meta.InputTransferPaths = jsonSchema.GetTransferPaths()
+		}
+		if meta.OutputSchema != "" {
+			jsonSchema := NewJsonSchema(meta.OutputSchema)
+			meta.OutputTransferPaths = jsonSchema.GetTransferPaths()
+		}
+	}
 	r.metaMap[tplName] = meta
 }
 
@@ -279,25 +298,61 @@ func (r *repository) AddTemplateByStr(name string, s string) []string {
 	return out
 }
 
-func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) (string, error) {
+func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error {
 	if volume == nil {
 		volume = &volumeMap{}
 	} else {
 		volumeR := reflect.ValueOf(volume)
 		if volumeR.IsNil() {
 			err := errors.Errorf("%#v must not nil", volumeR)
-			return "", err
+			return err
 
+		}
+	}
+	tplMeta, hasMeta := r.GetMeta(name)
+	if hasMeta && tplMeta.InputTransferPaths != nil {
+		inJson, err := TransferWithValidate(name, volume, tplMeta.InputTransferPaths, tplMeta.InputSchema)
+		if err != nil {
+			return err
+		}
+		if LOGGER_LEVEL == LOGGER_LEVEL_DEBUGGER {
+			key := fmt.Sprintf("%sInput", name)
+			volume.SetValue(key, inJson)
+		}
+		inMap := make(map[string]interface{})
+		err = json.Unmarshal([]byte(inJson), &inMap)
+		if err != nil {
+			return err
+		}
+		for k, v := range inMap {
+			volume.SetValue(k, v)
 		}
 	}
 	var b bytes.Buffer
 	err := r.template.ExecuteTemplate(&b, name, volume)
 	if err != nil {
 		err = errors.WithStack(err)
-		return "", err
+		return err
 	}
-	out := b.String()
-	return out, nil
+	originalOut := b.String()
+	originalOut = strings.ReplaceAll(originalOut, WINDOW_EOF, EOF)
+	out := originalOut
+	if hasMeta && tplMeta.OutputTransferPaths != nil {
+		outJson, err := TransferWithValidate(name, volume, tplMeta.OutputTransferPaths, tplMeta.OutputSchema)
+		if err != nil {
+			return err
+		}
+		if LOGGER_LEVEL == LOGGER_LEVEL_DEBUGGER {
+			key := fmt.Sprintf("%sOriginalOut", name)
+			volume.SetValue(key, originalOut)
+		}
+		out = outJson
+	}
+
+	key := fmt.Sprintf("%sOut", name)
+	out = StandardizeSpaces(out)
+	volume.SetValue(key, out)
+	return nil
 
 }
 

@@ -369,8 +369,8 @@ func (schema *Schema) GetName() string {
 	return name
 }
 
-//GetTransferPaths 从json schema 中获取路径映射
-func (schema *Schema) GetTransferPaths() TransferPaths {
+//GetTransferPathsWithOutValid 从json schema 中获取路径映射
+func (schema *Schema) GetTransferPathsWithOutValid() TransferPaths {
 	schema.Init()
 	out := make(TransferPaths, 0)
 	requiredArr := make([]string, 0)
@@ -394,15 +394,21 @@ func (schema *Schema) GetTransferPaths() TransferPaths {
 	schema.TransferPath = &transferPath
 	out = append(out, &transferPath)
 	for _, p := range schema.Properties {
-		subOut := p.GetTransferPaths()
+		subOut := p.GetTransferPathsWithOutValid()
 		out = append(out, subOut...)
 	}
 	if schema.Items != nil {
-		subOut := schema.Items.GetTransferPaths()
+		subOut := schema.Items.GetTransferPathsWithOutValid()
 		out = append(out, subOut...)
 	}
 
-	return out.UniqueItems().Valid()
+	return out.UniqueItems()
+}
+
+//GetTransferPaths 从json schema 中获取路径映射
+func (schema *Schema) GetTransferPaths() TransferPaths {
+	out := schema.GetTransferPathsWithOutValid()
+	return out.Valid()
 }
 
 func (schema *Schema) updatePathElements() {

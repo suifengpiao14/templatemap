@@ -30,6 +30,7 @@ var CoreFuncMap = template.FuncMap{
 	"sjsonSetRaw":     sjson.SetRaw,
 	"transfer":        Transfer,
 	"DBValidate":      DBValidate,
+	"dbValidate":      DBValidate,
 	"toBool":          ToBool,
 }
 
@@ -59,22 +60,6 @@ func ExecuteTemplate(volume VolumeInterface, name string) string {
 func SetValue(volume VolumeInterface, key string, value interface{}) string { // SetValue 返回空字符，不对模板产生新输出
 	volume.SetValue(key, value)
 	return ""
-}
-
-func DBValidateReverse(volume VolumeInterface, ok interface{}, msg string) string {
-	var boolOk bool
-	switch v := ok.(type) {
-	case bool:
-		boolOk = v
-	case string:
-		boolOk = v != "" && v != "false" && v != "0"
-	case int:
-		boolOk = v > 0
-	case int64:
-		boolOk = v > 0
-	}
-	value := fmt.Sprintf(`{"ok":%v,"msg":"%s"}`, !boolOk, msg)
-	return value
 }
 
 func ToBool(v interface{}) bool {
@@ -255,6 +240,44 @@ func ExecSQLTpl(volume VolumeInterface, templateName string) string {
 
 func Transfer(volume volumeMap, dstSchema string) (interface{}, error) {
 	return nil, nil
+}
+
+//FormatJson 根据json schema 格式化 json数据，填充默认值，容许为空时，设置类型初始化值等
+func FormatJson(jsonStr string, jsonschema string) (string, error) {
+	out := jsonStr
+	var err error
+	schema := NewJsonSchema(jsonschema)
+	transferPaths := schema.GetTransferPathsWithOutValid() // 此处只是用dst 即可
+	for _, transferPath := range transferPaths {
+		if !gjson.Get(out, transferPath.Dst).Exists() {
+			if transferPath.Default != nil {
+				out, err = sjson.Set(out, transferPath.Dst, transferPath.Default)
+				if err != nil {
+					return "", err
+				}
+			}
+			if !transferPath.AllowEmpty {
+				continue
+			}
+			// 设置类型初始化值
+			var v interface{}
+			switch transferPath.DstType {
+			case "string":
+				v = ""
+			case "int", "integer", "number":
+				v = 0
+			case "array":
+				v = make([]interface{}, 0)
+			case "float":
+				v = 0.0
+			}
+			out, err = sjson.Set(out, transferPath.Dst, v)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+	return out, nil
 }
 
 //TransferFiledToVolume 根据TransferPaths 提炼数据到volume 根节点下，主要用于不同接口间输入输出数据的承接

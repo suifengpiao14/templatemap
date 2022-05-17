@@ -334,7 +334,7 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error 
 		err = errors.WithStack(err)
 		return err
 	}
-	originalOut := b.String()
+	originalOut := StandardizeSpaces(b.String())
 	originalOut = strings.ReplaceAll(originalOut, WINDOW_EOF, EOF)
 	out := originalOut
 	if hasMeta && tplMeta.OutputTransferPaths != nil {

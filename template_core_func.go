@@ -250,14 +250,14 @@ func FormatJson(jsonStr string, jsonschema string) (string, error) {
 	transferPaths := schema.GetTransferPathsWithOutValid() // 此处只是用dst 即可
 	for _, transferPath := range transferPaths {
 		if !gjson.Get(out, transferPath.Dst).Exists() {
+			if transferPath.Default == "__nil__" {
+				continue
+			}
 			if transferPath.Default != nil {
 				out, err = sjson.Set(out, transferPath.Dst, transferPath.Default)
 				if err != nil {
 					return "", err
 				}
-			}
-			if !transferPath.AllowEmpty {
-				continue
 			}
 			// 设置类型初始化值
 			var v interface{}

@@ -380,34 +380,21 @@ func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 	var err error
 	var arr []interface{}
 	var ok bool
+	if v == nil {
+		return nil
+	}
 	if strings.Contains(dstPath, "#") {
-		if v == nil {
-			ok = true
-			arr = make([]interface{}, 0)
-		} else {
-			arr, ok = v.([]interface{})
-		}
+		arr, ok = v.([]interface{})
 		if !ok { // todo 此处只考虑了，从json字符串中提取数据，在设置到新的json字符串方式
 			err = errors.Errorf("Add2json func err , excepted array ,got %#v", v)
 			return err
 		}
 		if len(arr) == 0 {
-			keyArr := strings.SplitN(dstPath, "#", 2)
-			arrKey := keyArr[0]
-			arrKey = strings.Trim(arrKey, ".")
-			if gjson.Get(*s, arrKey).Exists() {
-				return nil
-			}
-			*s, err = sjson.Set(*s, arrKey, make([]interface{}, 0))
-			if err != nil {
-				err = errors.WithStack(err)
-				return err
-			}
 			return nil
 		}
 		for index, val := range arr {
 			path := strings.ReplaceAll(dstPath, "#", strconv.Itoa(index))
-			*s, err = sjson.Set(*s, path, val)
+			err = Add2json(s, path, dstType, val)
 			if err != nil {
 				err = errors.WithStack(err)
 				return err

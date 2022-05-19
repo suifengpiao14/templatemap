@@ -1,7 +1,6 @@
 package templatemap
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -247,7 +246,8 @@ func FormatJson(jsonStr string, jsonschema string) (string, error) {
 	out := jsonStr
 	var err error
 	schema := NewJsonSchema(jsonschema)
-	transferPaths := schema.GetTransferPathsWithOutValid() // 此处只是用dst 即可
+	schema.SetSrcAsDst()                       // 自动填充src，方便统一调用函数
+	transferPaths := schema.GetTransferPaths() // 此处只是用dst 即可
 	for _, transferPath := range transferPaths {
 		if !gjson.Get(out, transferPath.Dst).Exists() {
 			if transferPath.Default == "__nil__" {
@@ -273,6 +273,7 @@ func FormatJson(jsonStr string, jsonschema string) (string, error) {
 			}
 			out, err = sjson.Set(out, transferPath.Dst, v)
 			if err != nil {
+				err = errors.WithStack(err)
 				return "", err
 			}
 		}
@@ -280,28 +281,12 @@ func FormatJson(jsonStr string, jsonschema string) (string, error) {
 	return out, nil
 }
 
-//TransferFiledToVolume 根据TransferPaths 提炼数据到volume 根节点下，主要用于不同接口间输入输出数据的承接
-func TransferFiledToVolume(volume VolumeInterface, p TransferPaths) {
-	data, err := TransferDataFromVolume(volume, p)
-	if err != nil {
-		panic(err)
-	}
-	var input map[string]interface{}
-	err = json.Unmarshal([]byte(data), &input)
-	if err != nil {
-		panic(err)
-	}
-	for k, v := range input {
-		volume.SetValue(k, v)
-	}
-}
-
 func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths) (string, error) {
 	out := ""
-	r := getRepositoryFromVolume(volume)
+	var err error
+	parentTransferPaths := TransferPaths{}
 	for _, tp := range transferPaths {
 		var v interface{}
-		var err error
 		var dst = tp.Dst
 		var dstType = tp.DstType
 		ok := volume.GetValue(tp.Src, &v)
@@ -311,28 +296,83 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 				err := errors.Errorf("not found %s data from volume %#v", tp.Src, volume)
 				return "", err
 			}
-		}
-		if ok && tp.Transfer != "" {
-			tplName := fmt.Sprintf("%s%s", tp.Dst, "Transfer")
-			ok := r.TemplateExists(tplName)
-			if !ok {
-				r.AddTemplateByStr(tplName, tp.Transfer)
+
+			if tp.Default == nil && tp.Parent != nil {
+				parentTransferPaths = append(parentTransferPaths, tp.Parent)
+				continue // 没有默认值，则直接跳过
 			}
-			err := r.ExecuteTemplate(tplName, volume)
-			if err != nil {
-				return "", err
-			}
-			key := fmt.Sprintf("%sOut", tplName)
-			var out string
-			volume.GetValue(key, &out)
-			v = TrimSpaces(out)
+			v = tp.Default
 		}
 		err = Add2json(&out, dst, dstType, v)
 		if err != nil {
 			return "", err
 		}
 	}
+
+	// 补充parent, 解决子对象全部为空情况
+
+	parentTransferPaths = parentTransferPaths.UniqueItems()
+	for _, tp := range parentTransferPaths {
+		AddParent2Json(&out, *tp)
+	}
+
 	return out, nil
+}
+
+//AddParent2Json 填充父类元素，解决子元素全部为空情况
+func AddParent2Json(s *string, tp TransferPath) error {
+	var err error
+	typeValueArr, _ := tp.Schema.MultiType()
+	typeValue := ""
+	if len(typeValueArr) > 0 {
+		typeValue = strings.ToLower(typeValueArr[0])
+
+	}
+
+	if tp.Schema.IsRoot() && *s == "" {
+		switch typeValue {
+		case "object":
+			*s = "{}"
+		case "array":
+			*s = "[]"
+		}
+		return nil
+	}
+	dstLen := len(tp.Dst)
+	if dstLen < 1 {
+		err = errors.Errorf("TransferPath.dst is empty :%#v", tp)
+		panic(err)
+	}
+	if tp.Dst[dstLen-1:] == "#" {
+		if tp.Parent == nil {
+			return nil
+		}
+		return AddParent2Json(s, *tp.Parent)
+	}
+	if gjson.Get(*s, tp.Dst).Exists() {
+		return nil
+	}
+	var v interface{}
+	v = tp.Default
+	if v == nil {
+
+		switch typeValue {
+		case "":
+			if tp.Parent != nil {
+				return AddParent2Json(s, *tp.Parent)
+			}
+		case "object":
+			v = map[string]interface{}{}
+		case "array":
+			v = make([]string, 0)
+
+		}
+	}
+	*s, err = sjson.Set(*s, tp.Dst, v)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //Add2json 数据转换(将go数据写入到json字符串中)
@@ -347,7 +387,7 @@ func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 		} else {
 			arr, ok = v.([]interface{})
 		}
-		if !ok { // todo 此处只考虑了，从json字符串中提取数据，在设置到新的json字符串方式，对于
+		if !ok { // todo 此处只考虑了，从json字符串中提取数据，在设置到新的json字符串方式
 			err = errors.Errorf("Add2json func err , excepted array ,got %#v", v)
 			return err
 		}

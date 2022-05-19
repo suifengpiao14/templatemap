@@ -112,6 +112,7 @@ type TransferPath struct {
 	IsRequired bool
 	Transfer   string
 	Parent     *TransferPath
+	Schema     *Schema
 }
 
 func (t *TransferPath) ConvertType(dest interface{}) {
@@ -148,11 +149,15 @@ type TransferPaths []*TransferPath
 
 func (t TransferPaths) UniqueItems() TransferPaths {
 	out := TransferPaths{}
-	keyMap := make(map[string]*TransferPaths)
+	keyMap := make(map[string]*TransferPath)
 	for _, tp := range t {
+		if tp == nil {
+			continue // 使用parent transfer path，可能为nil
+		}
 		if _, ok := keyMap[tp.Dst]; ok {
 			continue
 		}
+		keyMap[tp.Dst] = tp
 		out = append(out, tp)
 	}
 	return out
@@ -267,7 +272,7 @@ func (schema *Schema) Type() (firstOrDefault string, multiple bool) {
 func (schema *Schema) MultiType() ([]string, bool) {
 	// We've got a single value, e.g. { "type": "object" }
 	if ts, ok := schema.TypeValue.(string); ok {
-		return []string{ts}, false
+		return []string{ts}, true
 	}
 
 	// We could have multiple types in the type value, e.g. { "type": [ "object", "array" ] }
@@ -369,8 +374,22 @@ func (schema *Schema) GetName() string {
 	return name
 }
 
-//GetTransferPathsWithOutValid 从json schema 中获取路径映射
-func (schema *Schema) GetTransferPathsWithOutValid() TransferPaths {
+//SetSrcAsDst 设置数据源为目标path，当json schema中 所有的 src 和path相同时，调用该函数，自动填充src属性
+func (schema *Schema) SetSrcAsDst() {
+	schema.Init()
+	schema.DataPathSrc = schema.DataPath
+	if schema.Properties != nil {
+		for _, p := range schema.Properties {
+			p.DataPathSrc = p.DataPath
+		}
+	}
+	if schema.Items != nil {
+		schema.Items.DataPathSrc = schema.Items.DataPath
+	}
+}
+
+//GetTransferPaths 从json schema 中获取路径映射
+func (schema *Schema) GetTransferPaths() TransferPaths {
 	schema.Init()
 	out := make(TransferPaths, 0)
 	requiredArr := make([]string, 0)
@@ -378,7 +397,6 @@ func (schema *Schema) GetTransferPathsWithOutValid() TransferPaths {
 	if schema.Parent != nil {
 		requiredArr = append(requiredArr, schema.Parent.Required...)
 	}
-
 	transferPath := TransferPath{
 		Dst:        TrimDot(schema.DataPath),
 		Src:        TrimDot(schema.DataPathSrc),
@@ -386,7 +404,8 @@ func (schema *Schema) GetTransferPathsWithOutValid() TransferPaths {
 		Default:    schema.Default,
 		AllowEmpty: schema.AllowEmpty,
 		Transfer:   schema.Transfer,
-		IsRequired: IsRequired(requiredArr, schema.GetName()),
+		IsRequired: IsRequired(requiredArr, schema.GetName()), // root 一定为false
+		Schema:     schema,
 	}
 	if schema.Parent != nil {
 		transferPath.Parent = schema.Parent.TransferPath
@@ -394,21 +413,15 @@ func (schema *Schema) GetTransferPathsWithOutValid() TransferPaths {
 	schema.TransferPath = &transferPath
 	out = append(out, &transferPath)
 	for _, p := range schema.Properties {
-		subOut := p.GetTransferPathsWithOutValid()
+		subOut := p.GetTransferPaths()
 		out = append(out, subOut...)
 	}
 	if schema.Items != nil {
-		subOut := schema.Items.GetTransferPathsWithOutValid()
+		subOut := schema.Items.GetTransferPaths()
 		out = append(out, subOut...)
 	}
 
-	return out.UniqueItems()
-}
-
-//GetTransferPaths 从json schema 中获取路径映射
-func (schema *Schema) GetTransferPaths() TransferPaths {
-	out := schema.GetTransferPathsWithOutValid()
-	return out.Valid()
+	return out.UniqueItems().Valid()
 }
 
 func (schema *Schema) updatePathElements() {
@@ -439,15 +452,11 @@ func (schema *Schema) updatePathElements() {
 func (schema *Schema) updateDataPaths() {
 	if schema.IsRoot() {
 		schema.DataPath = ""
+		schema.DataPathSrc = ""
 	}
 
 	for k, p := range schema.Properties {
-		if schema.Parent == nil {
-			p.DataPath = k
-		} else {
-			p.DataPath = fmt.Sprintf("%s.%s", schema.DataPath, k)
-		}
-
+		p.DataPath = fmt.Sprintf("%s.%s", schema.DataPath, k)
 		p.updateDataPaths()
 	}
 

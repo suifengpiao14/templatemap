@@ -15,25 +15,25 @@ import (
 )
 
 var CoreFuncMap = template.FuncMap{
-	"executeTemplate":               ExecuteTemplate,
-	"setValue":                      SetValue,
-	"throwError":                    ThrowError,
-	"getValue":                      GetValue,
-	"getSetValue":                   GetSetValue,
-	"getSetValueInt":                GetSetValueInt,
-	"getSetValueNumber":             GetSetValueNumber,
-	"getSetValueNumberWithEmptyStr": GetSetValueNumberWithEmptyStr,
-	"toSQL":                         ToSQL,
-	"exec":                          Exec,
-	"execSQLTpl":                    ExecSQLTpl,
-	"execCURLTpl":                   ExecCURLTpl,
-	"gjsonGet":                      gjson.Get,
-	"sjsonSet":                      sjson.Set,
-	"sjsonSetRaw":                   sjson.SetRaw,
-	"transfer":                      Transfer,
-	"DBValidate":                    DBValidate,
-	"dbValidate":                    DBValidate,
-	"toBool":                        ToBool,
+	"executeTemplate":                  ExecuteTemplate,
+	"setValue":                         SetValue,
+	"throwError":                       ThrowError,
+	"getValue":                         GetValue,
+	"getSetValue":                      GetSetValue,
+	"getSetValueInt":                   GetSetValueInt,
+	"getSetValueNumber":                GetSetValueNumber,
+	"getSetValueNumberWithOutEmptyStr": GetSetValueNumberWithOutEmptyStr,
+	"toSQL":                            ToSQL,
+	"exec":                             Exec,
+	"execSQLTpl":                       ExecSQLTpl,
+	"execCURLTpl":                      ExecCURLTpl,
+	"gjsonGet":                         gjson.Get,
+	"sjsonSet":                         sjson.Set,
+	"sjsonSetRaw":                      sjson.SetRaw,
+	"transfer":                         Transfer,
+	"DBValidate":                       DBValidate,
+	"dbValidate":                       DBValidate,
+	"toBool":                           ToBool,
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -108,7 +108,7 @@ func GetSetValueInt(volume VolumeInterface, setKey string, getKey string) string
 	return ""
 }
 
-func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) string {
+func GetSetValueNumberWithOutEmptyStr(volume VolumeInterface, setKey string, getKey string) string {
 	var v string
 	if strings.Contains(v, ".") {
 		oFloat, err := strconv.ParseFloat(v, 64)
@@ -128,14 +128,14 @@ func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) str
 	return ""
 }
 
-func GetSetValueNumberWithEmptyStr(volume VolumeInterface, setKey string, getKey string) string {
+func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) string {
 	var v string
 	volume.GetValue(getKey, &v)
 	if v == "" {
 		volume.SetValue(setKey, 0)
 		return ""
 	}
-	return GetSetValueNumber(volume, setKey, getKey)
+	return GetSetValueNumberWithOutEmptyStr(volume, setKey, getKey)
 }
 
 func Exec(volume VolumeInterface, tplName string, s string) string {

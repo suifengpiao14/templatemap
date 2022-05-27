@@ -15,22 +15,25 @@ import (
 )
 
 var CoreFuncMap = template.FuncMap{
-	"executeTemplate": ExecuteTemplate,
-	"setValue":        SetValue,
-	"getValue":        GetValue,
-	"getSetValue":     GetSetValue,
-	"getSetValueInt":  GetSetValueInt,
-	"toSQL":           ToSQL,
-	"exec":            Exec,
-	"execSQLTpl":      ExecSQLTpl,
-	"execCURLTpl":     ExecCURLTpl,
-	"gjsonGet":        gjson.Get,
-	"sjsonSet":        sjson.Set,
-	"sjsonSetRaw":     sjson.SetRaw,
-	"transfer":        Transfer,
-	"DBValidate":      DBValidate,
-	"dbValidate":      DBValidate,
-	"toBool":          ToBool,
+	"executeTemplate":               ExecuteTemplate,
+	"setValue":                      SetValue,
+	"throwError":                    ThrowError,
+	"getValue":                      GetValue,
+	"getSetValue":                   GetSetValue,
+	"getSetValueInt":                GetSetValueInt,
+	"getSetValueNumber":             GetSetValueNumber,
+	"getSetValueNumberWithEmptyStr": GetSetValueNumberWithEmptyStr,
+	"toSQL":                         ToSQL,
+	"exec":                          Exec,
+	"execSQLTpl":                    ExecSQLTpl,
+	"execCURLTpl":                   ExecCURLTpl,
+	"gjsonGet":                      gjson.Get,
+	"sjsonSet":                      sjson.Set,
+	"sjsonSetRaw":                   sjson.SetRaw,
+	"transfer":                      Transfer,
+	"DBValidate":                    DBValidate,
+	"dbValidate":                    DBValidate,
+	"toBool":                        ToBool,
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -82,6 +85,11 @@ func DBValidate(volume VolumeInterface, ok bool, msg string) string {
 	return value
 }
 
+func ThrowError(httpCode string, businessCode string, msg string) {
+	err := errors.Errorf("%s#%s#%s", httpCode, businessCode, msg)
+	panic(err)
+}
+
 func GetValue(volume VolumeInterface, key string) interface{} {
 	var value interface{}
 	volume.GetValue(key, &value)
@@ -98,6 +106,36 @@ func GetSetValueInt(volume VolumeInterface, setKey string, getKey string) string
 	volume.GetValue(getKey, &v)
 	volume.SetValue(setKey, v)
 	return ""
+}
+
+func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) string {
+	var v string
+	if strings.Contains(v, ".") {
+		oFloat, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			err = errors.WithStack(err)
+			panic(err)
+		}
+		volume.SetValue(setKey, oFloat)
+		return ""
+	}
+	oInt, err := strconv.Atoi(v)
+	if err != nil {
+		err = errors.WithStack(err)
+		panic(err)
+	}
+	volume.SetValue(setKey, oInt)
+	return ""
+}
+
+func GetSetValueNumberWithEmptyStr(volume VolumeInterface, setKey string, getKey string) string {
+	var v string
+	volume.GetValue(getKey, &v)
+	if v == "" {
+		volume.SetValue(setKey, 0)
+		return ""
+	}
+	return GetSetValueNumber(volume, setKey, getKey)
 }
 
 func Exec(volume VolumeInterface, tplName string, s string) string {
@@ -249,7 +287,8 @@ func FormatJson(jsonStr string, jsonschema string) (string, error) {
 	schema.SetSrcAsDst()                       // 自动填充src，方便统一调用函数
 	transferPaths := schema.GetTransferPaths() // 此处只是用dst 即可
 	for _, transferPath := range transferPaths {
-		if !gjson.Get(out, transferPath.Dst).Exists() {
+		dstResult := gjson.Get(out, transferPath.Dst)
+		if !dstResult.Exists() {
 			if transferPath.Default == "__nil__" {
 				continue
 			}

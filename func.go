@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -153,6 +154,10 @@ type ValidDBChecker struct {
 	Volume     VolumeInterface
 }
 
+func (f *ValidDBChecker) Name() string {
+	return "DBValidate"
+}
+
 func (f *ValidDBChecker) IsFormat(input interface{}) bool {
 
 	err := f.Repository.ExecuteTemplate(f.TplName, f.Volume)
@@ -163,6 +168,22 @@ func (f *ValidDBChecker) IsFormat(input interface{}) bool {
 	var ok bool
 	f.Volume.GetValue(key, &ok)
 	return ok
+}
+
+type NumberFormatChecker struct{}
+
+// IsFormat checks if input is a correctly formatted number string
+func (f *NumberFormatChecker) IsFormat(input interface{}) bool {
+	asString, ok := input.(string)
+	if !ok {
+		return false
+	}
+	_, err := strconv.ParseFloat(asString, 64)
+	return err == nil
+}
+
+func (f *NumberFormatChecker) Name() string {
+	return "DBValidate"
 }
 
 func (f *ValidDBChecker) Msg() string {

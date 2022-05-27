@@ -105,6 +105,7 @@ func NewJsonSchema(jsonSchema string) *Schema {
 
 type TransferPath struct {
 	Src        string
+	SrcType    string
 	Dst        string
 	DstType    string
 	Default    interface{}
@@ -380,11 +381,11 @@ func (schema *Schema) SetSrcAsDst() {
 	schema.DataPathSrc = schema.DataPath
 	if schema.Properties != nil {
 		for _, p := range schema.Properties {
-			p.DataPathSrc = p.DataPath
+			p.SetSrcAsDst()
 		}
 	}
 	if schema.Items != nil {
-		schema.Items.DataPathSrc = schema.Items.DataPath
+		schema.Items.SetSrcAsDst()
 	}
 }
 
@@ -397,9 +398,17 @@ func (schema *Schema) GetTransferPaths() TransferPaths {
 	if schema.Parent != nil {
 		requiredArr = append(requiredArr, schema.Parent.Required...)
 	}
+	typArr, ok := schema.MultiType()
+	if !ok {
+		err := errors.Errorf("schema.type required")
+		panic(err)
+	}
+	typ := typArr[0]
+
 	transferPath := TransferPath{
 		Dst:        TrimDot(schema.DataPath),
 		Src:        TrimDot(schema.DataPathSrc),
+		SrcType:    typ,
 		DstType:    fmt.Sprintf("%v", schema.TypeValue),
 		Default:    schema.Default,
 		AllowEmpty: schema.AllowEmpty,

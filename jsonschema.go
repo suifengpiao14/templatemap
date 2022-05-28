@@ -16,16 +16,16 @@ type AdditionalProperties Schema
 type Schema struct {
 	// SchemaType identifies the schema version.
 	// http://json-schema.org/draft-07/json-schema-core.html#rfc.section.7
-	SchemaType string `json:"$schema"`
+	SchemaType string `json:"$schema,omitempty"`
 
 	// ID{04,06} is the schema URI identifier.
 	// http://json-schema.org/draft-07/json-schema-core.html#rfc.section.8.2
-	ID04 string `json:"id"`  // up to draft-04
-	ID06 string `json:"$id"` // from draft-06 onwards
+	ID04 string `json:"id,omitempty"`  // up to draft-04
+	ID06 string `json:"$id,omitempty"` // from draft-06 onwards
 
 	// Title and Description state the intent of the schema.
-	Title       string
-	Description string
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
 
 	// TypeValue is the schema instance type.
 	// http://json-schema.org/draft-07/json-schema-validation.html#rfc.section.6.1.1
@@ -33,41 +33,43 @@ type Schema struct {
 
 	// Definitions are inline re-usable schemas.
 	// http://json-schema.org/draft-07/json-schema-validation.html#rfc.section.9
-	Definitions map[string]*Schema
+	Definitions map[string]*Schema `json:"definitions,omitempty"`
 
 	// Properties, Required and AdditionalProperties describe an object's child instances.
 	// http://json-schema.org/draft-07/json-schema-validation.html#rfc.section.6.5
-	Properties map[string]*Schema
-	Required   []string
+	Properties map[string]*Schema `json:"properties,omitempty"`
+	Required   []string           `json:"required,omitempty"`
 	// 当前属性是否为必须
-	IsRequired   bool
+	IsRequired   bool          `json:"-"`
 	TransferPath *TransferPath `json:"-"` // 挂载TransferPath
 
 	// "additionalProperties": {...}
-	AdditionalProperties *AdditionalProperties
+	AdditionalProperties *AdditionalProperties `json:"additionalProperties,omitempty"`
 
 	// "additionalProperties": false
 	AdditionalPropertiesBool *bool `json:"-"`
 
-	AnyOf []*Schema
-	AllOf []*Schema
-	OneOf []*Schema
+	AnyOf []*Schema `json:"anyOf,omitempty"`
+
+	AllOf []*Schema `json:"allOf,omitempty"`
+
+	OneOf []*Schema `json:"oneOf,omitempty"`
 
 	// Default can be used to supply a default JSON value associated with a particular schema.
 	// http://json-schema.org/draft-07/json-schema-validation.html#rfc.section.10.2
-	Default interface{}
+	Default interface{} `json:"default,omitempty"`
 
 	// Examples ...
 	// http://json-schema.org/draft-07/json-schema-validation.html#rfc.section.10.4
-	Examples []interface{}
+	Examples []interface{} `json:"examples,omitempty"`
 
 	// Reference is a URI reference to a schema.
 	// http://json-schema.org/draft-07/json-schema-core.html#rfc.section.8
-	Reference string `json:"$ref"`
+	Reference string `json:"$reft,omitempty"`
 
 	// Items represents the types that are permitted in the array.
 	// http://json-schema.org/draft-07/json-schema-validation.html#rfc.section.6.4
-	Items *Schema
+	Items *Schema `json:"$items,omitempty"`
 
 	// NameCount is the number of times the instance name was encountered across the schema.
 	NameCount int `json:"-" `
@@ -83,14 +85,16 @@ type Schema struct {
 
 	// json schema 生成的json data 路径
 	DataPath    string `json:"-"`
-	DataPathSrc string `json:"src"`
-	Transfer    string `json:"transfer"` // 数据转换表达式
+	DataPathSrc string `json:"src,omitempty"`
+	Transfer    string `json:"transfer,omitempty"` // 数据转换表达式
 	// 是否容许为空
-	AllowEmpty bool `json:"allowEmpty"`
+	AllowEmpty bool `json:"allowEmpty,omitempty"`
 
 	// calculated struct name of this object, cached here
 	GeneratedType string `json:"-"`
 	isInit        bool
+	Format        string `json:"format,omitempty"`
+	Pattern       string `json:"pattern,omitempty"`
 }
 
 func NewJsonSchema(jsonSchema string) *Schema {

@@ -7,7 +7,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"text/template"
 
@@ -145,52 +144,6 @@ func Validate(input string, jsonschema string) error {
 	}
 	err = errors.Errorf("input args validate errors: %s", strings.Join(msgArr, ","))
 	return err
-}
-
-//  数据库验证
-type ValidDBChecker struct {
-	Repository RepositoryInterface
-	TplName    string
-	Volume     VolumeInterface
-}
-
-func (f *ValidDBChecker) Name() string {
-	return "DBValidate"
-}
-
-func (f *ValidDBChecker) IsFormat(input interface{}) bool {
-
-	err := f.Repository.ExecuteTemplate(f.TplName, f.Volume)
-	if err != nil {
-		panic(err)
-	}
-	key := fmt.Sprintf("%sOut.ok", f.TplName)
-	var ok bool
-	f.Volume.GetValue(key, &ok)
-	return ok
-}
-
-type NumberFormatChecker struct{}
-
-// IsFormat checks if input is a correctly formatted number string
-func (f *NumberFormatChecker) IsFormat(input interface{}) bool {
-	asString, ok := input.(string)
-	if !ok {
-		return false
-	}
-	_, err := strconv.ParseFloat(asString, 64)
-	return err == nil
-}
-
-func (f *NumberFormatChecker) Name() string {
-	return "DBValidate"
-}
-
-func (f *ValidDBChecker) Msg() string {
-	msgKey := fmt.Sprintf("%sOut.msg", f.TplName)
-	var msg string
-	f.Volume.GetValue(msgKey, &msg)
-	return msg
 }
 
 func TransferWithValidate(tplName string, volume VolumeInterface, transferPaths TransferPaths, jsonSchema string) (string, error) {

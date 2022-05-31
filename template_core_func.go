@@ -17,7 +17,7 @@ import (
 var CoreFuncMap = template.FuncMap{
 	"executeTemplate":                  ExecuteTemplate,
 	"setValue":                         SetValue,
-	"throwError":                       ThrowError,
+	"panic":                            Panic,
 	"getValue":                         GetValue,
 	"getSetValue":                      GetSetValue,
 	"getSetValueInt":                   GetSetValueInt,
@@ -85,7 +85,7 @@ func DBValidate(volume VolumeInterface, ok bool, msg string) string {
 	return value
 }
 
-func ThrowError(httpCode string, businessCode string, msg string) {
+func Panic(httpCode string, businessCode string, msg string) string {
 	err := errors.Errorf("%s#%s#%s", httpCode, businessCode, msg)
 	panic(err)
 }

@@ -69,7 +69,7 @@ type Schema struct {
 
 	// Items represents the types that are permitted in the array.
 	// http://json-schema.org/draft-07/json-schema-validation.html#rfc.section.6.4
-	Items *Schema `json:"$items,omitempty"`
+	Items *Schema `json:"items,omitempty"`
 
 	// NameCount is the number of times the instance name was encountered across the schema.
 	NameCount int `json:"-" `
@@ -186,7 +186,7 @@ func (t TransferPaths) Valid() TransferPaths {
 		}
 		exists := false
 		dstLen := len(dst)
-		for k := range keyMap {
+		for k := range keyMap { // 父元素没有设置dst,查看是否有子元素，有子元素，忽略父元素
 			if len(k) > dstLen {
 				if k[:dstLen] == dst {
 					exists = true

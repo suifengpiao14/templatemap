@@ -142,7 +142,7 @@ func Exec(volume VolumeInterface, tplName string, s string) string {
 	var r = getRepositoryFromVolume(volume)
 	meta, ok := r.GetMeta(tplName)
 	if !ok {
-		err := errors.Errorf("not found meta  by template name : %s", tplName)
+		err := errors.Errorf("templatemap.Exec: not found meta  by template name : %s", tplName)
 		panic(err)
 	}
 

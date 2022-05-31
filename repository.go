@@ -334,8 +334,8 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error 
 		err = errors.WithStack(err)
 		return err
 	}
-	originalOut := StandardizeSpaces(b.String())
-	originalOut = strings.ReplaceAll(originalOut, WINDOW_EOF, EOF)
+	originalOut := strings.ReplaceAll(b.String(), WINDOW_EOF, EOF)
+	originalOut = TrimSpaces(originalOut)
 	out := originalOut
 	if hasMeta && tplMeta.OutputTransferPaths != nil {
 		outJson, err := TransferWithValidate(name, volume, tplMeta.OutputTransferPaths, tplMeta.OutputSchema)
@@ -350,7 +350,7 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error 
 	}
 
 	key := fmt.Sprintf("%sOut", name)
-	out = StandardizeSpaces(out)
+	out = TrimSpaces(out)
 	volume.SetValue(key, out)
 	return nil
 

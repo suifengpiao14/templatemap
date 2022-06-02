@@ -110,6 +110,11 @@ func GetSetValueInt(volume VolumeInterface, setKey string, getKey string) string
 
 func GetSetValueNumberWithOutEmptyStr(volume VolumeInterface, setKey string, getKey string) string {
 	var v string
+	volume.GetValue(getKey, &v)
+	if v == "" {
+		err := errors.Errorf("key(%s) required number format,got empty", getKey)
+		panic(err)
+	}
 	if strings.Contains(v, ".") {
 		oFloat, err := strconv.ParseFloat(v, 64)
 		if err != nil {

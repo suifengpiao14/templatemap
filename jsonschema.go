@@ -549,3 +549,20 @@ func (schema *Schema) FixMissingTypeValue() {
 func (schema *Schema) IsRoot() bool {
 	return schema.Parent == nil
 }
+
+func (schema *Schema) GetByPath(path string) (out *Schema, ok bool) {
+	out = schema
+	arr := strings.Split(path, ".")
+	for _, name := range arr {
+		for strings.HasSuffix(name, "[]") {
+			name = name[:len(name)-2]
+			out = schema.Items
+		}
+		tmp, ok := out.Properties[name]
+		if !ok {
+			return out, false
+		}
+		out = tmp
+	}
+	return out, out != nil
+}

@@ -1,18 +1,20 @@
 package templatemap
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 )
 
 func RawSchema2jsonSchema(rawSchema string) *Schema {
+	schema := new(Schema)
 	rawSchema = strings.ReplaceAll(rawSchema, WINDOW_EOF, EOF)
 	rawkArr := strings.Split(rawSchema, EOF)
 	for _, raw := range rawkArr {
 		raw = StandardizeSpaces(raw)
 		pairArr := strings.Split(raw, ",")
+		kvmap := make(map[string]interface{})
+		fullname := ""
 		for _, pair := range pairArr {
 			kv := strings.SplitN(pair, ":", 2)
 			if len(kv) != 2 {
@@ -21,12 +23,12 @@ func RawSchema2jsonSchema(rawSchema string) *Schema {
 			}
 			key := kv[0]
 			value := kv[1]
-			if key == "name" {
-				fmt.Println(value)
+			if key == "fullname" {
+				fullname = value
 			}
+			kvmap[key] = value
 		}
-
+		schema.SetByFullName(fullname, kvmap)
 	}
-	return nil
-
+	return schema
 }

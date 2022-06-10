@@ -92,6 +92,7 @@ type Schema struct {
 
 	// calculated struct name of this object, cached here
 	GeneratedType string `json:"-"`
+	FullName      string `json:"-"`
 	isInit        bool
 	Format        string `json:"format,omitempty"`
 	Pattern       string `json:"pattern,omitempty"`
@@ -550,9 +551,9 @@ func (schema *Schema) IsRoot() bool {
 	return schema.Parent == nil
 }
 
-func (schema *Schema) GetByPath(path string) (out *Schema, ok bool) {
+func (schema *Schema) GetByFullname(fullname string) (out *Schema, ok bool) {
 	out = schema
-	arr := strings.Split(path, ".")
+	arr := strings.Split(fullname, ".")
 	for _, name := range arr {
 		for strings.HasSuffix(name, "[]") {
 			name = name[:len(name)-2]
@@ -565,4 +566,63 @@ func (schema *Schema) GetByPath(path string) (out *Schema, ok bool) {
 		out = tmp
 	}
 	return out, out != nil
+}
+
+func (schema *Schema) SetByFullName(fullname string, props map[string]interface{}) (err error) {
+	out, _ := schema.GetByFullname(fullname)
+	if strings.HasPrefix(fullname, out.FullName) {
+		fullname = fullname[len(out.FullName):]
+	}
+	arr := strings.Split(fullname, ".")
+	length := len(arr)
+	for i, name := range arr {
+		outTypeValue, ok := out.TypeValue.(string)
+		if !ok {
+			err := errors.Errorf("only suport string type want: string,got :%#v", outTypeValue)
+			panic(err)
+		}
+		if i == length-1 { // 最后一个，设置属性
+			var targetSchema *Schema
+			b, err := json.Marshal(props)
+			if err != nil {
+				return err
+			}
+			err = json.Unmarshal(b, targetSchema)
+			if err != nil {
+				return err
+			}
+
+			switch strings.ToLower(outTypeValue) {
+			case "object":
+				out.Properties[name] = targetSchema
+			case "array":
+				if out.Items == nil {
+					out.Items = new(Schema)
+					out.Items.TypeValue = "object" // todo 目前不支持连续的数组模型
+				}
+				out.Items.Properties[name] = targetSchema
+			}
+			return nil
+		}
+		newSchema := new(Schema)
+		if strings.HasSuffix(name, "[]") {
+			name = name[:len(name)-2]
+			newSchema.TypeValue = "array"
+		} else {
+			newSchema.TypeValue = "object"
+		}
+		if outTypeValue == "array" {
+			if out.Items == nil {
+				itemSchema := new(Schema)
+				itemSchema.TypeValue = "object"
+				out.Items = itemSchema
+			}
+			out = out.Items
+		}
+		if out.Properties == nil {
+			out.Properties = make(map[string]*Schema)
+		}
+		out.Properties[name] = newSchema
+	}
+	return nil
 }

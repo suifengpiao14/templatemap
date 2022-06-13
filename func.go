@@ -160,3 +160,8 @@ func TransferWithValidate(tplName string, volume VolumeInterface, transferPaths 
 	// }
 	return out, nil
 }
+
+//Raw2Volumemap 从json数据结构中拷贝数据到volume map 中,为后续计算准备数据
+func Raw2Volumemap() {
+
+}

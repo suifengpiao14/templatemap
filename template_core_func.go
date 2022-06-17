@@ -21,6 +21,7 @@ var CoreFuncMap = template.FuncMap{
 	"getValue":                         GetValue,
 	"getSetValue":                      GetSetValue,
 	"getSetValueInt":                   GetSetValueInt,
+	"getSetNumber":                     GetSetValueNumber,
 	"getSetValueNumber":                GetSetValueNumber,
 	"getSetValueNumberWithOutEmptyStr": GetSetValueNumberWithOutEmptyStr,
 	"toSQL":                            ToSQL,

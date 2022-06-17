@@ -2,13 +2,14 @@ package templatemap
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"reflect"
 	"strconv"
 	"strings"
 	"text/template"
+
+	"encoding/json"
 
 	"github.com/Masterminds/sprig"
 	"github.com/pkg/errors"
@@ -52,9 +53,33 @@ func (v *volumeMap) init() {
 
 func (v *volumeMap) SetValue(key string, value interface{}) {
 	v.init()
-	(*v)[key] = value // todo 并发lock
-	//r:=getRepositoryFromVolume(v)
-
+	// todo 并发lock
+	if strings.Contains(key, ".") {
+		(*v)[key] = value
+		return
+	}
+	// 写入json
+	firstDot := strings.Index(key, ".")
+	root := key[:firstDot]
+	jsonKey := key[firstDot+1:]
+	data, ok := (*v)[root]
+	if !ok {
+		data = ""
+	}
+	dstType := "string"
+	str, ok := data.(string)
+	if !ok {
+		b, err := json.Marshal(data)
+		if err != nil {
+			panic(err)
+		}
+		str = string(b)
+	}
+	err := Add2json(&str, jsonKey, dstType, value)
+	if err != nil {
+		panic(err)
+	}
+	(*v)[root] = str
 }
 
 func (v *volumeMap) GetValue(key string, value interface{}) bool {
@@ -306,26 +331,6 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error 
 		if volumeR.IsNil() {
 			err := errors.Errorf("%#v must not nil", volumeR)
 			return err
-
-		}
-	}
-	tplMeta, hasMeta := r.GetMeta(name)
-	if hasMeta && tplMeta.InputTransferPaths != nil {
-		inJson, err := TransferWithValidate(name, volume, tplMeta.InputTransferPaths, tplMeta.InputSchema)
-		if err != nil {
-			return err
-		}
-		if LOGGER_LEVEL == LOGGER_LEVEL_DEBUGGER {
-			key := fmt.Sprintf("%sInput", name)
-			volume.SetValue(key, inJson)
-		}
-		inMap := make(map[string]interface{})
-		err = json.Unmarshal([]byte(inJson), &inMap)
-		if err != nil {
-			return err
-		}
-		for k, v := range inMap {
-			volume.SetValue(k, v)
 		}
 	}
 	var b bytes.Buffer
@@ -334,24 +339,14 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error 
 		err = errors.WithStack(err)
 		return err
 	}
-	originalOut := strings.ReplaceAll(b.String(), WINDOW_EOF, EOF)
-	originalOut = TrimSpaces(originalOut)
-	out := originalOut
-	if hasMeta && tplMeta.OutputTransferPaths != nil {
-		outJson, err := TransferWithValidate(name, volume, tplMeta.OutputTransferPaths, tplMeta.OutputSchema)
-		if err != nil {
-			return err
-		}
-		if LOGGER_LEVEL == LOGGER_LEVEL_DEBUGGER {
-			key := fmt.Sprintf("%sOriginalOut", name)
-			volume.SetValue(key, originalOut)
-		}
-		out = outJson
-	}
-
-	key := fmt.Sprintf("%sOut", name)
+	out := strings.ReplaceAll(b.String(), WINDOW_EOF, EOF)
 	out = TrimSpaces(out)
-	volume.SetValue(key, out)
+	key := fmt.Sprintf("%sOut", name)
+	var old interface{}
+	ok := volume.GetValue(key, old)
+	if !ok {
+		volume.SetValue(key, out)
+	}
 	return nil
 
 }

@@ -570,9 +570,7 @@ func (schema *Schema) GetByFullname(fullname string) (out *Schema, ok bool) {
 
 func (schema *Schema) SetByFullName(fullname string, props map[string]interface{}) (err error) {
 	out, _ := schema.GetByFullname(fullname)
-	if strings.HasPrefix(fullname, out.FullName) {
-		fullname = fullname[len(out.FullName):]
-	}
+	fullname = strings.TrimPrefix(fullname, out.FullName)
 	arr := strings.Split(fullname, ".")
 	length := len(arr)
 	for i, name := range arr {

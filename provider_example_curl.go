@@ -41,39 +41,18 @@ type ResponseData struct {
 	RequestData *RequestData   `json:"requestData"`
 }
 
-func InitHTTPClient(p *CURLExecProvider) *http.Client {
-
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   10 * time.Second, // 连接超时时间
-			KeepAlive: 30 * time.Second, // 连接保持超时时间
-		}).DialContext,
-		MaxIdleConns:        2000,             // 最大连接数,默认0无穷大
-		MaxIdleConnsPerHost: 2000,             // 对每个host的最大连接数量(MaxIdleConnsPerHost<=MaxIdleConns)
-		IdleConnTimeout:     90 * time.Second, // 多长时间未使用自动关闭连
-	}
-	if p.Config.Proxy != "" {
-		proxy, err := url.Parse(p.Config.Proxy)
-		if err != nil {
-			panic(err)
-		}
-		transport.Proxy = http.ProxyURL(proxy)
-	}
-	httpClient := &http.Client{
-		Transport: transport,
-	}
-	return httpClient
-}
-
 type CURLExecProviderConfig struct {
-	Proxy    string        `json:"proxy"`
-	LogLevel string        `json:"logLevel"`
-	Timeout  time.Duration `json:"timeout"`
+	Proxy               string `json:"proxy"`
+	LogLevel            string `json:"logLevel"`
+	Timeout             int    `json:"timeout"`
+	KeepAlive           int    `json:"keepAlive"`
+	MaxIdleConns        int    `json:"maxIdleConns"`
+	MaxIdleConnsPerHost int    `json:"maxIdleConnsPerHost"`
+	IdleConnTimeout     int    `json:"idleConnTimeout"`
 }
 
 type CURLExecProvider struct {
 	Config     CURLExecProviderConfig
-	InitClient func() *http.Client
 	client     *http.Client
 	clinetOnce sync.Once
 }
@@ -97,15 +76,56 @@ func (p *CURLExecProvider) Commit(tx interface{}) (err error) {
 // GetDb is a signal DB
 func (p *CURLExecProvider) GetClient() *http.Client {
 	if p.client == nil {
-		if p.InitClient == nil {
-			p.InitClient = func() *http.Client { return InitHTTPClient(p) }
-		}
 		p.clinetOnce.Do(func() {
-			p.client = p.InitClient()
+			p.client = InitHTTPClient(p)
 
 		})
 	}
 	return p.client
+}
+
+func InitHTTPClient(p *CURLExecProvider) *http.Client {
+
+	maxIdleConns := 200
+	maxIdleConnsPerHost := 20
+	idleConnTimeout := 90
+	if p.Config.MaxIdleConns > 0 {
+		maxIdleConns = p.Config.MaxIdleConns
+	}
+	if p.Config.MaxIdleConnsPerHost > 0 {
+		maxIdleConnsPerHost = p.Config.MaxIdleConnsPerHost
+	}
+	if p.Config.IdleConnTimeout > 0 {
+		idleConnTimeout = p.Config.IdleConnTimeout
+	}
+	timeout := 10
+	if p.Config.Timeout > 0 {
+		timeout = 10
+	}
+	keepAlive := 300
+	if p.Config.KeepAlive > 0 {
+		keepAlive = p.Config.KeepAlive
+	}
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   time.Duration(timeout) * time.Second,   // 连接超时时间
+			KeepAlive: time.Duration(keepAlive) * time.Second, // 连接保持超时时间
+		}).DialContext,
+		MaxIdleConns:        maxIdleConns,                                 // 最大连接数,默认0无穷大
+		MaxIdleConnsPerHost: maxIdleConnsPerHost,                          // 对每个host的最大连接数量(MaxIdleConnsPerHost<=MaxIdleConns)
+		IdleConnTimeout:     time.Duration(idleConnTimeout) * time.Second, // 多长时间未使用自动关闭连
+	}
+	if p.Config.Proxy != "" {
+		proxy, err := url.Parse(p.Config.Proxy)
+		if err != nil {
+			panic(err)
+		}
+		transport.Proxy = http.ProxyURL(proxy)
+	}
+	httpClient := &http.Client{
+		Transport: transport,
+	}
+	return httpClient
 }
 
 func CURlProvider(p *CURLExecProvider, httpRaw string) (string, error) {
@@ -117,12 +137,19 @@ func CURlProvider(p *CURLExecProvider, httpRaw string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	timeout := p.Config.Timeout
-	if timeout == 0 {
-		timeout = 30
+	timeout := 30
+	if p.Config.Timeout > 0 {
+		timeout = p.Config.Timeout
 	}
-	timeout = timeout * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	timeoutStr := reqReader.Header.Get("x-http-timeout")
+	if timeoutStr != "" {
+		timeoutInt, _ := strconv.Atoi(timeoutStr)
+		if timeoutInt > 0 {
+			timeout = timeoutInt // 优先使用定制化的超时时间
+		}
+	}
+	timeoutDuration := time.Duration(timeout) * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, reqData.Method, reqData.URL, bytes.NewReader([]byte(reqData.Body)))
 	if err != nil {

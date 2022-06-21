@@ -30,6 +30,7 @@ var LOGGER_LEVEL = LOGGER_LEVEL_DEBUGGER
 type VolumeInterface interface {
 	SetValue(key string, value interface{})
 	GetValue(key string, value interface{}) (ok bool)
+	Exists(key string) (ok bool)
 }
 
 func NewVolume(r RepositoryInterface) VolumeInterface {
@@ -49,6 +50,11 @@ func (v *volumeMap) init() {
 	if *v == nil {
 		*v = volumeMap{} // 解决 data33 情况
 	}
+}
+
+func (v *volumeMap) Exists(key string) (ok bool) {
+	_, ok = (*v)[key]
+	return ok
 }
 
 func (v *volumeMap) SetValue(key string, value interface{}) {
@@ -343,8 +349,7 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error 
 	out := strings.ReplaceAll(b.String(), WINDOW_EOF, EOF)
 	out = TrimSpaces(out)
 	key := fmt.Sprintf("%sOut", name)
-	var old interface{}
-	ok := volume.GetValue(key, old)
+	ok := volume.Exists(key)
 	if !ok {
 		volume.SetValue(key, out)
 	}

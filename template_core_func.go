@@ -35,6 +35,7 @@ var CoreFuncMap = template.FuncMap{
 	"DBValidate":                       DBValidate,
 	"dbValidate":                       DBValidate,
 	"toBool":                           ToBool,
+	"getProvider":                      GetProvider,
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -145,7 +146,7 @@ func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) str
 	return GetSetValueNumberWithOutEmptyStr(volume, setKey, getKey)
 }
 
-func Exec(volume VolumeInterface, tplName string, s string) string {
+func GetProvider(volume VolumeInterface, tplName string) ExecproviderInterface {
 	var r = getRepositoryFromVolume(volume)
 	meta, ok := r.GetMeta(tplName)
 	if !ok {
@@ -158,6 +159,11 @@ func Exec(volume VolumeInterface, tplName string, s string) string {
 		err := errors.Errorf("meta:%v provider must be set", meta)
 		panic(err)
 	}
+	return provider
+}
+
+func Exec(volume VolumeInterface, tplName string, s string) string {
+	provider := GetProvider(volume, tplName)
 	out, err := provider.Exec(tplName, s)
 	if err != nil {
 		panic(err)

@@ -35,7 +35,7 @@ var CoreFuncMap = template.FuncMap{
 	"DBValidate":                       DBValidate,
 	"dbValidate":                       DBValidate,
 	"toBool":                           ToBool,
-	"getProvider":                      GetProvider,
+	"getSource":                        GetSource,
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -145,7 +145,10 @@ func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) str
 	}
 	return GetSetValueNumberWithOutEmptyStr(volume, setKey, getKey)
 }
-
+func GetSource(volume VolumeInterface, tplName string) (source interface{}) {
+	provider := GetProvider(volume, tplName)
+	return provider.GetSource()
+}
 func GetProvider(volume VolumeInterface, tplName string) ExecproviderInterface {
 	var r = getRepositoryFromVolume(volume)
 	meta, ok := r.GetMeta(tplName)

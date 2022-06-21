@@ -212,9 +212,7 @@ func convertType(dst interface{}, src interface{}) bool {
 
 type ExecproviderInterface interface {
 	Exec(identifier string, s string) (string, error)
-	Begin() (tx interface{}, err error)
-	Rollback(tx interface{}) (err error)
-	Commit(tx interface{}) (err error)
+	GetSource() (source interface{})
 }
 
 type ExecProviderFunc func(identifier string, s string) (string, error)

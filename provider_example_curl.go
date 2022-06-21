@@ -82,8 +82,8 @@ func (p *CURLExecProvider) Exec(identifier string, s string) (string, error) {
 	return CURlProvider(p, s)
 }
 
-func (p *CURLExecProvider) Begin() (tx interface{}, err error) {
-	return nil, nil
+func (p *CURLExecProvider) GetSource() (source interface{}) {
+	return p.client
 }
 
 func (p *CURLExecProvider) Rollback(tx interface{}) (err error) {

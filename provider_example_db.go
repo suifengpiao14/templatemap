@@ -38,29 +38,8 @@ func (p *DBExecProvider) Exec(identifier string, s string) (string, error) {
 	return dbProvider(p, s)
 }
 
-func (p *DBExecProvider) Begin() (tx interface{}, err error) {
-
-	return p.db.Begin()
-}
-
-func (p *DBExecProvider) Rollback(tx interface{}) (err error) {
-	dbTx, ok := tx.(*sql.Tx)
-	if !ok {
-		err := errors.Errorf("db Rollback.tx require *sql.Tx,got %#v", tx)
-		panic(err)
-	}
-
-	return dbTx.Rollback()
-}
-
-func (p *DBExecProvider) Commit(tx interface{}) (err error) {
-	dbTx, ok := tx.(*sql.Tx)
-	if !ok {
-		err := errors.Errorf("db Rollback.tx require *sql.Tx,got %#v", tx)
-		panic(err)
-	}
-
-	return dbTx.Commit()
+func (p *DBExecProvider) GetSource() (source interface{}) {
+	return p.db
 }
 
 // GetDb is a signal DB

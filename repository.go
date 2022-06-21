@@ -341,10 +341,30 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error 
 		}
 	}
 	var b bytes.Buffer
+	before := fmt.Sprintf("%sBefore", name)
+	beforeTp := r.template.Lookup(before)
+	if beforeTp != nil {
+		var beforeWriter bytes.Buffer
+		err := beforeTp.ExecuteTemplate(&beforeWriter, before, volume)
+		if err != nil {
+			err = errors.WithStack(err)
+			return err
+		}
+	}
 	err := r.template.ExecuteTemplate(&b, name, volume)
 	if err != nil {
 		err = errors.WithStack(err)
 		return err
+	}
+	after := fmt.Sprintf("%sAfter", name)
+	afterTp := r.template.Lookup(after)
+	if afterTp != nil {
+		var afterWriter bytes.Buffer
+		err := afterTp.ExecuteTemplate(&afterWriter, after, volume)
+		if err != nil {
+			err = errors.WithStack(err)
+			return err
+		}
 	}
 	out := strings.ReplaceAll(b.String(), WINDOW_EOF, EOF)
 	out = TrimSpaces(out)

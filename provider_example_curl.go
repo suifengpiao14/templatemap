@@ -82,6 +82,18 @@ func (p *CURLExecProvider) Exec(identifier string, s string) (string, error) {
 	return CURlProvider(p, s)
 }
 
+func (p *CURLExecProvider) Begin() (tx interface{}, err error) {
+	return nil, nil
+}
+
+func (p *CURLExecProvider) Rollback(tx interface{}) (err error) {
+	return nil
+}
+
+func (p *CURLExecProvider) Commit(tx interface{}) (err error) {
+	return nil
+}
+
 // GetDb is a signal DB
 func (p *CURLExecProvider) GetClient() *http.Client {
 	if p.client == nil {

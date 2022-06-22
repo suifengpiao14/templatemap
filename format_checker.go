@@ -80,14 +80,15 @@ func (f *ValidDBChecker) Name() string {
 }
 
 func (f *ValidDBChecker) IsFormat(input interface{}) bool {
-
-	err := f.Repository.ExecuteTemplate(f.TplName, f.Volume)
+	out, err := f.Repository.ExecuteTemplate(f.TplName, f.Volume)
 	if err != nil {
 		panic(err)
 	}
-	key := fmt.Sprintf("%sOut.ok", f.TplName)
+	outputKey := fmt.Sprintf("%sOut", f.TplName)
+	f.Volume.SetValue(outputKey, out)
+	okKey := fmt.Sprintf("%sOut.ok", f.TplName)
 	var ok bool
-	f.Volume.GetValue(key, &ok)
+	f.Volume.GetValue(okKey, &ok)
 	return ok
 }
 

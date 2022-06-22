@@ -51,13 +51,10 @@ func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
 //ExecuteTemplate 模板中调用模板
 func ExecuteTemplate(volume VolumeInterface, name string) string {
 	var r = getRepositoryFromVolume(volume)
-	err := r.ExecuteTemplate(name, volume)
+	out, err := r.ExecuteTemplate(name, volume)
 	if err != nil {
 		panic(err) // ExecuteTemplate 函数可能嵌套很多层，抛出错误值后有可能被当成正常值处理，所以此处直接panic 退出，保留原始错误输出
 	}
-	key := fmt.Sprintf("%sOut", name)
-	var out string
-	volume.GetValue(key, &out)
 	return out
 }
 

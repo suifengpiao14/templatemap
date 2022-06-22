@@ -236,7 +236,7 @@ type RepositoryInterface interface {
 	AddTemplateByFS(fsys fs.FS, root string) (addTplNames []string)
 	AddTemplateByStr(name string, s string) (addTplNames []string)
 	GetTemplate() *template.Template
-	ExecuteTemplate(name string, volume VolumeInterface) error
+	ExecuteTemplate(name string, volume VolumeInterface) (string, error)
 	TemplateExists(name string) bool
 	RegisterMeta(tplName string, meta *TemplateMeta)
 	GetMeta(tplName string) (*TemplateMeta, bool)
@@ -324,52 +324,25 @@ func (r *repository) AddTemplateByStr(name string, s string) []string {
 	return out
 }
 
-func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) error {
+func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) (string, error) {
 	if volume == nil {
 		volume = &volumeMap{}
 	} else {
 		volumeR := reflect.ValueOf(volume)
 		if volumeR.IsNil() {
 			err := errors.Errorf("%#v must not nil", volumeR)
-			return err
+			return "", err
 		}
 	}
 	var b bytes.Buffer
-	before := fmt.Sprintf("%sBefore", name)
-	beforeTp := r.template.Lookup(before)
-	if beforeTp != nil {
-		var beforeWriter bytes.Buffer
-		err := beforeTp.ExecuteTemplate(&beforeWriter, before, volume)
-		if err != nil {
-			err = errors.WithStack(err)
-			return err
-		}
-	}
 	err := r.template.ExecuteTemplate(&b, name, volume)
 	if err != nil {
 		err = errors.WithStack(err)
-		return err
-	}
-	after := fmt.Sprintf("%sAfter", name)
-	afterTp := r.template.Lookup(after)
-	if afterTp != nil {
-		var afterWriter bytes.Buffer
-		err := afterTp.ExecuteTemplate(&afterWriter, after, volume)
-		if err != nil {
-			err = errors.WithStack(err)
-			return err
-		}
+		return "", err
 	}
 	out := strings.ReplaceAll(b.String(), WINDOW_EOF, EOF)
 	out = TrimSpaces(out)
-	key := fmt.Sprintf("%sOut", name)
-	var existsVal interface{}
-	ok := volume.GetValue(key, &existsVal)
-	if !ok {
-		volume.SetValue(key, out)
-	}
-	return nil
-
+	return out, nil
 }
 
 func (r *repository) TemplateExists(name string) bool {

@@ -127,10 +127,9 @@ func getTemplateNames(t *template.Template) []string {
 	return out
 }
 
-func Validate(input string, jsonschema string) error {
-	schemaLoader := gojsonschema.NewStringLoader(jsonschema)
+func Validate(input string, jsonLoader gojsonschema.JSONLoader) error {
 	documentLoader := gojsonschema.NewStringLoader(input)
-	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	result, err := gojsonschema.Validate(jsonLoader, documentLoader)
 	if err != nil {
 		return err
 	}

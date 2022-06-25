@@ -14,6 +14,7 @@ import (
 	"github.com/Masterminds/sprig"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 const (
@@ -222,16 +223,18 @@ func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
 	return f(identifier, s)
 }
 
-type TemplateMeta struct {
-	Name          string
-	ExecProvider  ExecproviderInterface
-	InLineschema  string
-	InTpl         string
-	InDefaultJson string
+type LineschemaMeta struct {
+	Lineschema   string
+	JsonSchema   string
+	Tpl          string
+	DefaultJson  string
+	SchemaLoader *gojsonschema.JSONLoader
+}
 
-	OutLineschema  string
-	OutTpl         string
-	OutDefaultJson string
+type TemplateMeta struct {
+	Name           string
+	ExecProvider   ExecproviderInterface
+	LineschemaMeta *LineschemaMeta
 }
 
 type RepositoryInterface interface {

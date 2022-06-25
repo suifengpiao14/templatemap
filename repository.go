@@ -223,12 +223,15 @@ func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
 }
 
 type TemplateMeta struct {
-	Name                string
-	ExecProvider        ExecproviderInterface
-	InputSchema         string
-	InputTransferPaths  TransferPaths
-	OutputSchema        string
-	OutputTransferPaths TransferPaths
+	Name          string
+	ExecProvider  ExecproviderInterface
+	InLineschema  string
+	InTpl         string
+	InDefaultJson string
+
+	OutLineschema  string
+	OutTpl         string
+	OutDefaultJson string
 }
 
 type RepositoryInterface interface {
@@ -260,16 +263,6 @@ func newTemplate() *template.Template {
 }
 
 func (r *repository) RegisterMeta(tplName string, meta *TemplateMeta) {
-	if meta != nil {
-		if meta.InputSchema != "" {
-			jsonSchema := NewJsonSchema(meta.InputSchema)
-			meta.InputTransferPaths = jsonSchema.GetTransferPaths()
-		}
-		if meta.OutputSchema != "" {
-			jsonSchema := NewJsonSchema(meta.OutputSchema)
-			meta.OutputTransferPaths = jsonSchema.GetTransferPaths()
-		}
-	}
 	r.metaMap[tplName] = meta
 }
 

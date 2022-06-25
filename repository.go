@@ -55,7 +55,7 @@ func (v *volumeMap) init() {
 func (v *volumeMap) SetValue(key string, value interface{}) {
 	v.init()
 	// todo 并发lock
-	if strings.Contains(key, ".") {
+	if !strings.Contains(key, ".") {
 		(*v)[key] = value
 		return
 	}

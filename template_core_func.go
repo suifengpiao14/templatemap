@@ -26,6 +26,7 @@ var CoreFuncMap = template.FuncMap{
 	"getSetValueNumberWithOutEmptyStr": GetSetValueNumberWithOutEmptyStr,
 	"toSQL":                            ToSQL,
 	"exec":                             Exec,
+	"execBinTpl":                       ExecBinTpl,
 	"execSQLTpl":                       ExecSQLTpl,
 	"execCURLTpl":                      ExecCURLTpl,
 	"gjsonGet":                         gjson.Get,
@@ -258,6 +259,14 @@ func getNamedData(data interface{}) (out map[string]interface{}, err error) {
 }
 
 func ExecCURLTpl(volume VolumeInterface, templateName string) error {
+	tplOut := ExecuteTemplate(volume, templateName)
+	out := Exec(volume, templateName, tplOut)
+	storeKey := fmt.Sprintf("%sOut", templateName)
+	volume.SetValue(storeKey, out)
+	return nil
+}
+
+func ExecBinTpl(volume VolumeInterface, templateName string) error {
 	tplOut := ExecuteTemplate(volume, templateName)
 	out := Exec(volume, templateName, tplOut)
 	storeKey := fmt.Sprintf("%sOut", templateName)

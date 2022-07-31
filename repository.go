@@ -223,6 +223,49 @@ func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
 	return f(identifier, s)
 }
 
+const (
+	PROVIDER_SQL      = "SQL"
+	PROVIDER_CURL     = "CURL"
+	PROVIDER_BIN      = "BIN"
+	PROVIDER_REDIS    = "REDIS"
+	PROVIDER_RABBITMQ = "RABBITMQ"
+)
+
+//MakeExecProvider 根据名称，获取exec 执行器，后续改成注册执行器方式
+func MakeExecProvider(identifier string, configJson string) (provider ExecproviderInterface, err error) {
+
+	switch identifier {
+	case PROVIDER_SQL:
+		var config DBExecProviderConfig
+		if configJson != "" {
+			err = json.Unmarshal([]byte(configJson), &config)
+			if err != nil {
+				return nil, err
+			}
+		}
+		provider = &DBExecProvider{
+			Config: config,
+		}
+	case PROVIDER_CURL:
+		var config CURLExecProviderConfig
+		if configJson != "" {
+			err = json.Unmarshal([]byte(configJson), &config)
+			if err != nil {
+				return nil, err
+			}
+		}
+		provider = &CURLExecProvider{
+			Config: config,
+		}
+	case PROVIDER_BIN:
+		provider = &BinExecProvider{}
+	default:
+		err = errors.Errorf("not suport source type :%s", identifier)
+		return nil, err
+	}
+	return provider, nil
+}
+
 type LineschemaMeta struct {
 	Lineschema   string
 	JsonSchema   string

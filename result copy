@@ -1,0 +1,160 @@
+@startuml
+
+ class NumberFormatChecker {
+}
+
+ class PhoneFormatChecker {
+}
+
+ class IDCardFormatChecker {
+}
+
+ class PostCodeFormatChecker {
+}
+
+ class ValidDBChecker {
+  Repository RepositoryInterface
+  TplName string
+  Volume VolumeInterface
+}
+
+ class Schema {
+  SchemaType string
+  ID04 string
+  ID06 string
+  Title string
+  Description string
+  TypeValue interface  { }
+  Definitions map[string]*Schema
+  Properties map[string]*Schema
+  Required []string
+  IsRequired bool
+  TransferPath *TransferPath
+  AdditionalProperties *AdditionalProperties
+  AdditionalPropertiesBool *bool
+  AnyOf []*Schema
+  AllOf []*Schema
+  OneOf []*Schema
+  Default interface  { }
+  Examples []interface  { }
+  Reference string
+  Items *Schema
+  NameCount int
+  Parent *Schema
+  JSONKey string
+  PathElement string
+  DataPath string
+  DataPathSrc string
+  Transfer string
+  AllowEmpty bool
+  GeneratedType string
+  FullName string
+  isInit bool
+  Format string
+  Pattern string
+}
+
+ class TransferPath {
+  Src string
+  SrcType string
+  Dst string
+  DstType string
+  Default interface  { }
+  AllowEmpty bool
+  IsRequired bool
+  Transfer string
+  Parent *TransferPath
+  Schema *Schema
+}
+
+ class RequestData {
+  URL string
+  Method string
+  Header http.Header
+  Cookies []*http.Cookie
+  Body string
+}
+
+ class ResponseData {
+  HttpStatus string
+  Header http.Header
+  Cookies []*http.Cookie
+  Body string
+  RequestData *RequestData
+}
+
+ class CURLExecProviderConfig {
+  Proxy string
+  LogLevel string
+  Timeout int
+  KeepAlive int
+  MaxIdleConns int
+  MaxIdleConnsPerHost int
+  IdleConnTimeout int
+}
+
+ class CURLExecProvider {
+  Config CURLExecProviderConfig
+  client *http.Client
+  clinetOnce sync.Once
+}
+
+ class DBExecProviderConfig {
+  DSN string
+  LogLevel string
+  Timeout int
+}
+
+ class DBExecProvider {
+  Config DBExecProviderConfig
+  db *sql.DB
+  dbOnce sync.Once
+}
+
+ class LineschemaMeta {
+  Lineschema string
+  JsonSchema string
+  Tpl string
+  DefaultJson string
+  SchemaLoader *gojsonschema.JSONLoader
+}
+
+ class TemplateMeta {
+  Name string
+  ExecProvider ExecproviderInterface
+  LineschemaMeta *LineschemaMeta
+}
+
+ class repository {
+  template *template.Template
+  metaMap map[string]*TemplateMeta
+}
+
+ class preComma {
+  comma string
+}
+
+ interface VolumeInterface  {
+  SetValue(key string,value interface  { })
+  GetValue(key string,value interface  { })ok bool
+}
+
+ interface ExecproviderInterface  {
+  Exec(identifier string,s string)(string,error)
+  GetSource()source interface  { }
+}
+
+ interface RepositoryInterface  {
+  AddTemplateByDir(dir string)addTplNames []string
+  AddTemplateByFS(fsys fs.FS,root string)addTplNames []string
+  AddTemplateByStr(name string,s string)addTplNames []string
+  GetTemplate()*template.Template
+  ExecuteTemplate(name string,volume VolumeInterface)(string,error)
+  TemplateExists(name string)bool
+  RegisterMeta(tplName string,meta *TemplateMeta)
+  GetMeta(tplName string)(*TemplateMeta,bool)
+}
+.ExecproviderInterface <|- .CURLExecProvider
+.ExecproviderInterface <|- .DBExecProvider
+.RepositoryInterface <|- .repository
+@enduml

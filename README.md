@@ -172,7 +172,8 @@ dataCenter -->business: 返回数据
 
 start
   :接收输入(input);
-  if(模板已加载) equals(否)then
+  if(鉴权) then(通过)
+  if(模板未加载) then(是)
    :加载模板;
  endif
 :格式化输入;
@@ -186,8 +187,10 @@ endif
 repeat while (更多模板?)
 else(不通过)
 endif
+endif
 :格式化输出;
 :输出(output);
 stop
 @enduml
+
 ```

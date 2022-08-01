@@ -64,3 +64,130 @@ end
 dataCenter -->business: 返回数据
 @enduml
 ```
+
+## 仓库uml
+```plantuml
+@startuml
+ class LineschemaMeta {
+  Lineschema string
+  JsonSchema string
+  Tpl string
+  DefaultJson string
+  SchemaLoader *gojsonschema.JSONLoader
+}
+ class TemplateMeta {
+  Name string
+  ExecProvider ExecproviderInterface
+  LineschemaMeta *LineschemaMeta
+}
+ class repository {
+  template *template.Template
+  metaMap map[string]*TemplateMeta
+}
+ interface VolumeInterface  {
+  SetValue(key string,value interface  { })
+  GetValue(key string,value interface  { })ok bool
+}
+ interface ExecproviderInterface  {
+  Exec(identifier string,s string)(string,error)
+  GetSource()source interface  { }
+}
+ interface RepositoryInterface  {
+  AddTemplateByDir(dir string)addTplNames []string
+  AddTemplateByFS(fsys fs.FS,root string)addTplNames []string
+  AddTemplateByStr(name string,s string)addTplNames []string
+  GetTemplate()*template.Template
+  ExecuteTemplate(name string,volume VolumeInterface)(string,error)
+  TemplateExists(name string)bool
+  RegisterMeta(tplName string,meta *TemplateMeta)
+  GetMeta(tplName string)(*TemplateMeta,bool)
+}
+.RepositoryInterface <|- .repository
+@enduml
+```
+
+## 执行器uml
+```platuml
+@startuml
+
+
+ class RequestData {
+  URL string
+  Method string
+  Header http.Header
+  Cookies []*http.Cookie
+  Body string
+}
+
+ class ResponseData {
+  HttpStatus string
+  Header http.Header
+  Cookies []*http.Cookie
+  Body string
+  RequestData *RequestData
+}
+
+ class CURLExecProviderConfig {
+  Proxy string
+  LogLevel string
+  Timeout int
+  KeepAlive int
+  MaxIdleConns int
+  MaxIdleConnsPerHost int
+  IdleConnTimeout int
+}
+
+ class CURLExecProvider {
+  Config CURLExecProviderConfig
+  client *http.Client
+  clinetOnce sync.Once
+}
+
+ class DBExecProviderConfig {
+  DSN string
+  LogLevel string
+  Timeout int
+}
+
+ class DBExecProvider {
+  Config DBExecProviderConfig
+  db *sql.DB
+  dbOnce sync.Once
+}
+
+
+ interface ExecproviderInterface  {
+  Exec(identifier string,s string)(string,error)
+  GetSource()source interface  { }
+}
+
+
+.ExecproviderInterface <|- .CURLExecProvider
+.ExecproviderInterface <|- .DBExecProvider
+@enduml
+```
+## 软件执行流程图
+```platuml
+@startuml
+
+start
+  :接收输入(input);
+  if(模板已加载) equals(否)then
+   :加载模板;
+ endif
+:格式化输入;
+if (校验输入) equals(通过)then
+:初始化容器(volume)数据;
+:调用API模板主函数;
+repeat: 执行内嵌模板/远程调用;
+if(发生错误) then(抛出错误)
+break
+endif
+repeat while (更多模板?)
+else(不通过)
+endif
+:格式化输出;
+:输出(output);
+stop
+@enduml
+```

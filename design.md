@@ -31,6 +31,12 @@
 ![实体关系图](./entity.png)
 
 ### 软件uml图
-1. 
+1. 仓库(RepositoryInterface) 接口负责将容器(VolumeInterface)、模板(Template)、模板元数据(TemplateMeta)、执行器(ExecproviderInterface)等组件组合实现存储、调用、转换数据功能,uml图如下:
+![仓库接口uml图](./repository.png)
+2. 执行器(ExecproviderInterface)负责执行数据远程操作,目前实现了数据库(DB),http请求(CURL)调用,uml图如下:
+![执行器接口uml图](./providor.png)
 
+### 软件执行流程
+软件接受到输入后,根据输入找到对应api模板,再格式化数据、验证输入、执行主函数,最后格式化输出,具体流程图如下:
+![执行流程图](./active.png)
 

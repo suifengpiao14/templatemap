@@ -107,7 +107,7 @@ dataCenter -->business: 返回数据
 ```
 
 ## 执行器uml
-```platuml
+```plantuml
 @startuml
 
 
@@ -167,7 +167,7 @@ dataCenter -->business: 返回数据
 @enduml
 ```
 ## 软件执行流程图
-```platuml
+```plantuml
 @startuml
 
 start

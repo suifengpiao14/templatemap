@@ -13,6 +13,8 @@ import (
 
 	"github.com/Masterminds/sprig"
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/templatemap/provider"
+	"github.com/suifengpiao14/templatemap/util"
 	"github.com/tidwall/gjson"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -211,61 +213,6 @@ func convertType(dst interface{}, src interface{}) bool {
 	panic(err)
 }
 
-type ExecproviderInterface interface {
-	Exec(identifier string, s string) (string, error)
-	GetSource() (source interface{})
-}
-
-type ExecProviderFunc func(identifier string, s string) (string, error)
-
-func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
-	// 调用f函数本体
-	return f(identifier, s)
-}
-
-const (
-	PROVIDER_SQL      = "SQL"
-	PROVIDER_CURL     = "CURL"
-	PROVIDER_BIN      = "BIN"
-	PROVIDER_REDIS    = "REDIS"
-	PROVIDER_RABBITMQ = "RABBITMQ"
-)
-
-//MakeExecProvider 根据名称，获取exec 执行器，后续改成注册执行器方式
-func MakeExecProvider(identifier string, configJson string) (provider ExecproviderInterface, err error) {
-
-	switch identifier {
-	case PROVIDER_SQL:
-		var config DBExecProviderConfig
-		if configJson != "" {
-			err = json.Unmarshal([]byte(configJson), &config)
-			if err != nil {
-				return nil, err
-			}
-		}
-		provider = &DBExecProvider{
-			Config: config,
-		}
-	case PROVIDER_CURL:
-		var config CURLExecProviderConfig
-		if configJson != "" {
-			err = json.Unmarshal([]byte(configJson), &config)
-			if err != nil {
-				return nil, err
-			}
-		}
-		provider = &CURLExecProvider{
-			Config: config,
-		}
-	case PROVIDER_BIN:
-		provider = &BinExecProvider{}
-	default:
-		err = errors.Errorf("not suport source type :%s", identifier)
-		return nil, err
-	}
-	return provider, nil
-}
-
 type LineschemaMeta struct {
 	Lineschema   string
 	JsonSchema   string
@@ -276,7 +223,7 @@ type LineschemaMeta struct {
 
 type TemplateMeta struct {
 	Name           string
-	ExecProvider   ExecproviderInterface
+	ExecProvider   provider.ExecproviderInterface
 	LineschemaMeta *LineschemaMeta
 }
 
@@ -324,7 +271,7 @@ func (r *repository) GetTemplate() *template.Template {
 func (r *repository) AddTemplateByDir(dir string) []string {
 
 	patten := fmt.Sprintf("%s/**%s", strings.TrimRight(dir, "/"), TPlSuffix)
-	allFileList, err := GlobDirectory(dir, patten)
+	allFileList, err := util.GlobDirectory(dir, patten)
 	if err != nil {
 		err = errors.WithStack(err)
 		panic(err)
@@ -332,20 +279,20 @@ func (r *repository) AddTemplateByDir(dir string) []string {
 
 	r.template = template.Must(r.template.ParseFiles(allFileList...)) // 追加
 	tmp := template.Must(newTemplate().ParseFiles(allFileList...))
-	out := getTemplateNames(tmp)
+	out := util.GetTemplateNames(tmp)
 	return out
 }
 
 func (r *repository) AddTemplateByFS(fsys fs.FS, root string) []string {
 	patten := fmt.Sprintf("%s/**%s", strings.TrimRight(root, "/"), TPlSuffix)
-	allFileList, err := GlobFS(fsys, patten)
+	allFileList, err := util.GlobFS(fsys, patten)
 	if err != nil {
 		err = errors.WithStack(err)
 		panic(err)
 	}
-	r.template = template.Must(parseFiles(r.template, readFileFS(fsys), allFileList...)) // 追加
-	tmp := template.Must(parseFiles(newTemplate(), readFileFS(fsys), allFileList...))
-	out := getTemplateNames(tmp)
+	r.template = template.Must(util.ParseFiles(r.template, util.ReadFileFS(fsys), allFileList...)) // 追加
+	tmp := template.Must(util.ParseFiles(newTemplate(), util.ReadFileFS(fsys), allFileList...))
+	out := util.GetTemplateNames(tmp)
 	return out
 }
 
@@ -359,7 +306,7 @@ func (r *repository) AddTemplateByStr(name string, s string) []string {
 	template.Must(tmpl.Parse(s)) // 追加
 
 	tmp := template.Must(newTemplate().Parse(s))
-	out := getTemplateNames(tmp)
+	out := util.GetTemplateNames(tmp)
 	return out
 }
 
@@ -379,8 +326,8 @@ func (r *repository) ExecuteTemplate(name string, volume VolumeInterface) (strin
 		err = errors.WithStack(err)
 		return "", err
 	}
-	out := strings.ReplaceAll(b.String(), WINDOW_EOF, EOF)
-	out = TrimSpaces(out)
+	out := strings.ReplaceAll(b.String(), provider.WINDOW_EOF, provider.EOF)
+	out = util.TrimSpaces(out)
 	return out, nil
 }
 

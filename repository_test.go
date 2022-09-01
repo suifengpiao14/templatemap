@@ -3,12 +3,14 @@ package templatemap
 import (
 	"fmt"
 	"testing"
+
+	"github.com/suifengpiao14/templatemap/provider"
 )
 
 func TestRepository(t *testing.T) {
 	r := NewRepository()
 	tplnames := r.AddTemplateByDir(".")
-	provider := &DBExecProvider{Config: DBExecProviderConfig{LogLevel: LOG_LEVEL_DEBUG, DSN: "hjx:123456@tcp(106.53.100.222:3306)/docapi?charset=utf8&timeout=1s&readTimeout=5s&writeTimeout=5s&parseTime=False&loc=Local&multiStatements=true"}}
+	provider := &provider.DBExecProvider{Config: provider.DBExecProviderConfig{LogLevel: provider.LOG_LEVEL_DEBUG, DSN: "hjx:123456@tcp(106.53.100.222:3306)/docapi?charset=utf8&timeout=1s&readTimeout=5s&writeTimeout=5s&parseTime=False&loc=Local&multiStatements=true"}}
 	for _, tplName := range tplnames {
 		meta := TemplateMeta{
 			Name:         tplName,

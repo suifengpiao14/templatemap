@@ -1,4 +1,4 @@
-package templatemap
+package util
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 )
 
 // 拷贝template 包helper 方法
-func readFileFS(fsys fs.FS) func(string) (string, []byte, error) {
+func ReadFileFS(fsys fs.FS) func(string) (string, []byte, error) {
 	return func(file string) (name string, b []byte, err error) {
 		name = path.Base(file)
 		b, err = fs.ReadFile(fsys, file)
@@ -25,7 +25,7 @@ func readFileFS(fsys fs.FS) func(string) (string, []byte, error) {
 
 // parseFiles is the helper for the method and function. If the argument
 // template is nil, it is created from the first file.
-func parseFiles(t *template.Template, readFile func(string) (string, []byte, error), filenames ...string) (*template.Template, error) {
+func ParseFiles(t *template.Template, readFile func(string) (string, []byte, error), filenames ...string) (*template.Template, error) {
 	if len(filenames) == 0 {
 		// Not really a problem, but be consistent.
 		return nil, fmt.Errorf("template: no files named in call to ParseFiles")
@@ -116,7 +116,7 @@ func StandardizeSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func getTemplateNames(t *template.Template) []string {
+func GetTemplateNames(t *template.Template) []string {
 	out := make([]string, 0)
 	for _, tpl := range t.Templates() {
 		name := tpl.Name()
@@ -143,19 +143,4 @@ func Validate(input string, jsonLoader gojsonschema.JSONLoader) error {
 	}
 	err = errors.Errorf("input args validate errors: %s", strings.Join(msgArr, ","))
 	return err
-}
-
-func TransferWithValidate(tplName string, volume VolumeInterface, transferPaths TransferPaths, jsonSchema string) (string, error) {
-	out, err := TransferDataFromVolume(volume, transferPaths)
-	if err != nil {
-		return "", err
-	}
-	// 暂时注释验证，客户端输入，必须在之前验证，内部函数参数，暂时不验证
-	// if jsonSchema != "" {
-	// 	err = Validate(out, jsonSchema)
-	// 	if err != nil {
-	// 		return "", err
-	// 	}
-	// }
-	return out, nil
 }

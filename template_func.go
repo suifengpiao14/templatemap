@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/rs/xid"
+	"github.com/suifengpiao14/templatemap/util"
 	"goa.design/goa/v3/codegen"
 )
 
@@ -32,7 +33,7 @@ var TemplatefuncMap = template.FuncMap{
 	"timestampSecond":   TimestampSecond,
 	"xid":               Xid,
 	"jsonCompact":       JsonCompact,
-	"standardizeSpaces": StandardizeSpaces,
+	"standardizeSpaces": util.StandardizeSpaces,
 }
 
 const IN_INDEX = "__inIndex"

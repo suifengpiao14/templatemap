@@ -98,3 +98,18 @@ func (f *ValidDBChecker) Msg() string {
 	f.Volume.GetValue(msgKey, &msg)
 	return msg
 }
+
+func TransferWithValidate(tplName string, volume VolumeInterface, transferPaths TransferPaths, jsonSchema string) (string, error) {
+	out, err := TransferDataFromVolume(volume, transferPaths)
+	if err != nil {
+		return "", err
+	}
+	// 暂时注释验证，客户端输入，必须在之前验证，内部函数参数，暂时不验证
+	// if jsonSchema != "" {
+	// 	err = Validate(out, jsonSchema)
+	// 	if err != nil {
+	// 		return "", err
+	// 	}
+	// }
+	return out, nil
+}

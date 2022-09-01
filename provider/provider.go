@@ -19,13 +19,6 @@ type ExecproviderInterface interface {
 	GetSource() (source interface{})
 }
 
-type ExecProviderFunc func(identifier string, s string) (string, error)
-
-func (f ExecProviderFunc) Exec(identifier string, s string) (string, error) {
-	// 调用f函数本体
-	return f(identifier, s)
-}
-
 //MakeExecProvider 根据名称，获取exec 执行器，后续改成注册执行器方式
 func MakeExecProvider(identifier string, configJson string) (execProvider ExecproviderInterface, err error) {
 

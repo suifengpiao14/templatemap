@@ -25,3 +25,10 @@ func TestTransferData(t *testing.T) {
 	}
 	fmt.Println(out)
 }
+
+func TestListPadIndex(t *testing.T) {
+	out := ListPadIndex(10)
+	for i := range out {
+		fmt.Println(i)
+	}
+}

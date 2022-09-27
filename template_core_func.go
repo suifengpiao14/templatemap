@@ -37,6 +37,7 @@ var CoreFuncMap = template.FuncMap{
 	"dbValidate":                       DBValidate,
 	"toBool":                           ToBool,
 	"getSource":                        GetSource,
+	"ListPadIndex":                     ListPadIndex, //生成指定长度的整型数组，变相在模板中实现for
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
@@ -77,7 +78,11 @@ func ToBool(v interface{}) bool {
 		ok = v > 0
 	}
 	return ok
+}
 
+func ListPadIndex(size int) (out []int) {
+	out = make([]int, size)
+	return
 }
 
 func DBValidate(volume VolumeInterface, ok bool, msg string) string {

@@ -1,4 +1,4 @@
-package templatemap
+package provider
 
 import (
 	"fmt"
@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/templatemap/util"
 )
 
 func TestSplitN(t *testing.T) {
 	input := `
 	#!/usr/bin/php
 	`
-	input = StandardizeSpaces(input)
+	input = util.StandardizeSpaces(input)
 	input = strings.ReplaceAll(input, WINDOW_EOF, EOF)
 	script := strings.SplitN(input, EOF, 2)
 	if len(script) < 1 {

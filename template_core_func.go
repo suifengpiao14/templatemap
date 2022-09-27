@@ -9,6 +9,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/templatemap/provider"
+	"github.com/suifengpiao14/templatemap/util"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	gormLogger "gorm.io/gorm/logger"
@@ -152,7 +154,7 @@ func GetSource(volume VolumeInterface, tplName string) (source interface{}) {
 	provider := GetProvider(volume, tplName)
 	return provider.GetSource()
 }
-func GetProvider(volume VolumeInterface, tplName string) ExecproviderInterface {
+func GetProvider(volume VolumeInterface, tplName string) provider.ExecproviderInterface {
 	var r = getRepositoryFromVolume(volume)
 	meta, ok := r.GetMeta(tplName)
 	if !ok {
@@ -160,12 +162,12 @@ func GetProvider(volume VolumeInterface, tplName string) ExecproviderInterface {
 		panic(err)
 	}
 
-	provider := meta.ExecProvider
-	if provider == nil {
+	execProvider := meta.ExecProvider
+	if execProvider == nil {
 		err := errors.Errorf("meta:%v provider must be set", meta)
 		panic(err)
 	}
-	return provider
+	return execProvider
 }
 
 func Exec(volume VolumeInterface, tplName string, s string) string {
@@ -282,7 +284,7 @@ func ExecBinTpl(volume VolumeInterface, templateName string) error {
 func ExecSQLTpl(volume VolumeInterface, templateName string) string {
 	//{{executeTemplate . "Paginate"|toSQL . | exec . "docapi_db2"|setValue . }}
 	tplOut := ExecuteTemplate(volume, templateName)
-	tplOut = StandardizeSpaces(tplOut)
+	tplOut = util.StandardizeSpaces(tplOut)
 	if tplOut == "" {
 		err := errors.Errorf("sql template :%s return empty sql", templateName)
 		panic(err)

@@ -1,4 +1,4 @@
-package templatemap
+package provider
 
 import (
 	"bufio"
@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/templatemap/util"
 )
 
 const (
@@ -199,7 +200,7 @@ func CURlProvider(p *CURLExecProvider, httpRaw string) (string, error) {
 }
 
 func ReadRequest(httpRaw string) (req *http.Request, err error) {
-	httpRaw = TrimSpaces(httpRaw) // （删除前后空格，对于没有body 内容的请求，后面再加上必要的换行）
+	httpRaw = util.TrimSpaces(httpRaw) // （删除前后空格，对于没有body 内容的请求，后面再加上必要的换行）
 	if httpRaw == "" {
 		err = errors.Errorf("http raw not allow empty")
 		return nil, err

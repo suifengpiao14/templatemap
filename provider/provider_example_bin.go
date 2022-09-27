@@ -1,4 +1,4 @@
-package templatemap
+package provider
 
 import (
 	"io"
@@ -9,6 +9,7 @@ import (
 
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/templatemap/util"
 )
 
 type BinExecProvider struct {
@@ -25,7 +26,7 @@ func (p *BinExecProvider) GetSource() (source interface{}) {
 
 func binProvider(p *BinExecProvider, input string) (string, error) {
 	// Start subprocess
-	input = StandardizeSpaces(input)
+	input = util.StandardizeSpaces(input)
 	input = strings.ReplaceAll(input, WINDOW_EOF, EOF)
 	script := strings.SplitN(input, EOF, 2)
 	if len(script) < 1 {

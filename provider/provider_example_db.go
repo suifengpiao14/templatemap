@@ -1,4 +1,4 @@
-package templatemap
+package provider
 
 import (
 	"database/sql"
@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/templatemap/util"
 )
 
 var DriverName = "mysql"
@@ -78,7 +79,7 @@ func SQLType(sqls string) string {
 }
 
 func dbProvider(p *DBExecProvider, sqls string) (string, error) {
-	sqls = StandardizeSpaces(TrimSpaces(sqls)) // 格式化sql语句
+	sqls = util.StandardizeSpaces(util.TrimSpaces(sqls)) // 格式化sql语句
 	sqlType := SQLType(sqls)
 	db := p.GetDb()
 	if sqlType != SQL_TYPE_SELECT {

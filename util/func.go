@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -175,4 +176,33 @@ func Validate(input string, jsonLoader gojsonschema.JSONLoader) (err error) {
 	}
 	err = errors.Errorf("input args validate errors: %s", strings.Join(msgArr, ","))
 	return err
+}
+
+func Reversal(jsonStr string) (out string) {
+	arr := make(map[string][]interface{}, 0)
+	err := json.Unmarshal([]byte(jsonStr), &arr)
+	if err != nil {
+		panic(err)
+	}
+	var outArr []map[string]interface{}
+	initOutArr := true
+	for key, column := range arr {
+		if initOutArr { //init array
+			outArr = make([]map[string]interface{}, len(column))
+			initOutArr = false
+		}
+
+		for i, val := range column {
+			if outArr[i] == nil { //init map
+				outArr[i] = make(map[string]interface{})
+			}
+			outArr[i][key] = val
+		}
+	}
+	b, err := json.Marshal(outArr)
+	if err != nil {
+		panic(err)
+	}
+	out = string(b)
+	return out
 }

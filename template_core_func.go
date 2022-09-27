@@ -26,6 +26,7 @@ var CoreFuncMap = template.FuncMap{
 	"getSetNumber":                     GetSetValueNumber,
 	"getSetValueNumber":                GetSetValueNumber,
 	"getSetValueNumberWithOutEmptyStr": GetSetValueNumberWithOutEmptyStr,
+	"reversalJsonArr":                  ReversalJsonArr,
 	"toSQL":                            ToSQL,
 	"exec":                             Exec,
 	"execBinTpl":                       ExecBinTpl,
@@ -144,6 +145,17 @@ func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) str
 		return ""
 	}
 	return GetSetValueNumberWithOutEmptyStr(volume, setKey, getKey)
+}
+
+func ReversalJsonArr(volume VolumeInterface, key string) string {
+	var v string
+	volume.GetValue(key, &v)
+	if v == "" {
+		return ""
+	}
+	out := util.Reversal(v)
+	volume.SetValue(key, out)
+	return ""
 }
 func GetSource(volume VolumeInterface, tplName string) (source interface{}) {
 	provider := GetProvider(volume, tplName)

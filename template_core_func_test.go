@@ -25,3 +25,17 @@ func TestTransferData(t *testing.T) {
 	}
 	fmt.Println(out)
 }
+
+func TestReversalJsonArr(t *testing.T) {
+
+	jsonStr := `
+	{"name":["张三","李四","王五"],"age":[1,2,3]}
+	`
+	volume := volumeMap{}
+	key := "object.items"
+	volume.SetValue(key, jsonStr)
+	ReversalJsonArr(&volume, key)
+	var out string
+	volume.GetValue(key, &out)
+	fmt.Println(out)
+}

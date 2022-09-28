@@ -40,7 +40,7 @@ var CoreFuncMap = template.FuncMap{
 	"dbValidate":                       DBValidate,
 	"toBool":                           ToBool,
 	"getSource":                        GetSource,
-	"ListPadIndex":                     ListPadIndex, //生成指定长度的整型数组，变相在模板中实现for
+	"listPadIndex":                     ListPadIndex, //生成指定长度的整型数组，变相在模板中实现for
 }
 
 func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {

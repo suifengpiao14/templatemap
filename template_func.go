@@ -34,7 +34,7 @@ var TemplatefuncMap = template.FuncMap{
 	"xid":               Xid,
 	"jsonCompact":       JsonCompact,
 	"standardizeSpaces": util.StandardizeSpaces,
-	"reversal":          util.Reversal,
+	"column2Row":        util.Column2Row,
 }
 
 const IN_INDEX = "__inIndex"

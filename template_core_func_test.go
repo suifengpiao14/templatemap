@@ -33,7 +33,7 @@ func TestListPadIndex(t *testing.T) {
 	}
 }
 
-func TestReversalJsonArr(t *testing.T) {
+func TestGetSetColumn2Row(t *testing.T) {
 
 	jsonStr := `
 	{"name":["张三","李四","王五"],"age":[1,2,3]}
@@ -41,9 +41,22 @@ func TestReversalJsonArr(t *testing.T) {
 	volume := volumeMap{}
 	key := "object.items"
 	volume.SetValue(key, jsonStr)
-	ReversalJsonArr(&volume, key)
+	GetSetColumn2Row(&volume, key)
 	var out string
 	volume.GetValue(key, &out)
 	fmt.Println(out)
+}
 
+func TestGetSetRow2Column(t *testing.T) {
+
+	jsonStr := `
+	[{"name":"张三","age":1},{"name":"李四","age":2},{"name":"王五","age":3}]
+	`
+	volume := volumeMap{}
+	key := "object.items"
+	volume.SetValue(key, jsonStr)
+	GetSetRow2Column(&volume, key)
+	var out string
+	volume.GetValue(key, &out)
+	fmt.Println(out)
 }

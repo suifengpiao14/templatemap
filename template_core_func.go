@@ -471,9 +471,9 @@ func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 	var err error
 	var arr []interface{}
 	var ok bool
-	if v == nil {
-		return nil
-	}
+	// if v == nil { // 值为nil也需要设置,需要保留数据key
+	// 	return nil
+	// }
 	if strings.Contains(dstPath, "#") {
 		arr, ok = v.([]interface{})
 		if !ok { // todo 此处只考虑了，从json字符串中提取数据，在设置到新的json字符串方式
@@ -493,7 +493,6 @@ func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 		}
 		return nil
 	}
-
 	var realV interface{}
 	realV = v //set default v with interface{} type
 	if dstType == "" {

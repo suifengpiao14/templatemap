@@ -108,7 +108,7 @@ func getPattern(pattern string) *regexp.Regexp {
 	return reg
 }
 
-//TrimSpaces  去除开头结尾的非有效字符
+// TrimSpaces  去除开头结尾的非有效字符
 func TrimSpaces(s string) string {
 	return strings.Trim(s, "\r\n\t\v\f ")
 }
@@ -178,7 +178,7 @@ func Validate(input string, jsonLoader gojsonschema.JSONLoader) (err error) {
 	return err
 }
 
-//Column2Row 列数据(二维数组中一维为列对象，二维为值数组)转行数据(二维数组中，一维为行索引，二维为行对象) gjson 获取数据时，会将行数据，转换成列数据，此时需要调用该函数再转换为行数据
+// Column2Row 列数据(二维数组中一维为列对象，二维为值数组)转行数据(二维数组中，一维为行索引，二维为行对象) gjson 获取数据时，会将行数据，转换成列数据，此时需要调用该函数再转换为行数据
 func Column2Row(jsonStr string) (out string) {
 	arr := make(map[string][]interface{}, 0)
 	err := json.Unmarshal([]byte(jsonStr), &arr)
@@ -208,7 +208,7 @@ func Column2Row(jsonStr string) (out string) {
 	return out
 }
 
-//Row2Column 行数据(二维数组中，一维为行索引，二维为行对象)转 列数据(二维数组中一维为列对象，二维为值数组) ，有时json数据的key和结构体的json key（结构体由第三方包定义，不可修改tag） 不一致，但是存在对应关系，需要构造结构体内json key数据，此时将行数据改成列数据，方便计算
+// Row2Column 行数据(二维数组中，一维为行索引，二维为行对象)转 列数据(二维数组中一维为列对象，二维为值数组) ，有时json数据的key和结构体的json key（结构体由第三方包定义，不可修改tag） 不一致，但是存在对应关系，需要构造结构体内json key数据，此时将行数据改成列数据，方便计算
 func Row2Column(jsonStr string) (out string) {
 	arr := make([]map[string]interface{}, 0)
 	err := json.Unmarshal([]byte(jsonStr), &arr)

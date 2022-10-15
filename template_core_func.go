@@ -1,6 +1,7 @@
 package templatemap
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -154,23 +155,59 @@ func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) str
 }
 
 func GetSetColumn2Row(volume VolumeInterface, key string) string {
-	var v string
+	var v interface{}
 	volume.GetValue(key, &v) // 多级key,返回的为map类型,无法转换为string
-	if v == "" {
+	if v == nil {
 		return ""
 	}
-	out := util.Column2Row(v)
-	volume.SetValue(key, out)
+	str, ok := v.(string) //OK=true 表示去处的是字符串json,后续设置时,也设置字符串,否则,表示取出map[string][]interface{}格式,后续设置的时候也需要设置[]map[string]interface{}格式
+	if !ok {
+		b, err := json.Marshal(v)
+		if err != nil {
+			panic(err)
+		}
+		str = string(b)
+	}
+	out := util.Column2Row(str)
+	var newVal interface{}
+	newVal = out
+	if !ok {
+		arr := make([]map[string]interface{}, 0)
+		err := json.Unmarshal([]byte(out), &arr)
+		if err != nil {
+			panic(err)
+		}
+		newVal = arr
+	}
+	volume.SetValue(key, newVal)
 	return ""
 }
 func GetSetRow2Column(volume VolumeInterface, key string) string {
-	var v string
-	volume.GetValue(key, &v)
-	if v == "" {
+	var v interface{}
+	volume.GetValue(key, &v) // 多级key,返回的为map类型,无法转换为string
+	if v == nil {
 		return ""
 	}
-	out := util.Row2Column(v)
-	volume.SetValue(key, out)
+	str, ok := v.(string) //OK=true 表示去处的是字符串json,后续设置时,也设置字符串,否则,表示取出map[string][]interface{}格式,后续设置的时候也需要设置[]map[string]interface{}格式
+	if !ok {
+		b, err := json.Marshal(v)
+		if err != nil {
+			panic(err)
+		}
+		str = string(b)
+	}
+	out := util.Row2Column(str)
+	var newVal interface{}
+	newVal = out
+	if !ok {
+		arr := make([]map[string]interface{}, 0)
+		err := json.Unmarshal([]byte(out), &arr)
+		if err != nil {
+			panic(err)
+		}
+		newVal = arr
+	}
+	volume.SetValue(key, newVal)
 	return ""
 }
 func GetSource(volume VolumeInterface, tplName string) (source interface{}) {

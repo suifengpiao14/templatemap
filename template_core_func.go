@@ -1,6 +1,7 @@
 package templatemap
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -54,7 +55,7 @@ func getRepositoryFromVolume(volume VolumeInterface) RepositoryInterface {
 	return r
 }
 
-//ExecuteTemplate 模板中调用模板
+// ExecuteTemplate 模板中调用模板
 func ExecuteTemplate(volume VolumeInterface, name string) string {
 	var r = getRepositoryFromVolume(volume)
 	out, err := r.ExecuteTemplate(name, volume)
@@ -154,12 +155,23 @@ func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) str
 }
 
 func GetSetColumn2Row(volume VolumeInterface, key string) string {
-	var v string
-	volume.GetValue(key, &v)
-	if v == "" {
+	var v interface{}
+	volume.GetValue(key, &v) // 多级key,返回的为map类型,无法转换为string
+	if v == nil {
 		return ""
 	}
-	out := util.Column2Row(v)
+	var str string
+	str, ok := v.(string)
+	if !ok {
+		b, err := json.Marshal(v)
+		if err != nil {
+			err = errors.WithMessage(err, "template_core_func.GetSetColumn2Row")
+			panic(err)
+		}
+		str = string(b)
+	}
+
+	out := util.Column2Row(str)
 	volume.SetValue(key, out)
 	return ""
 }
@@ -331,7 +343,7 @@ func Transfer(volume volumeMap, dstSchema string) (interface{}, error) {
 	return nil, nil
 }
 
-//FormatJson 根据json schema 格式化 json数据，填充默认值，容许为空时，设置类型初始化值等
+// FormatJson 根据json schema 格式化 json数据，填充默认值，容许为空时，设置类型初始化值等
 func FormatJson(jsonStr string, jsonschema string) (string, error) {
 	out := jsonStr
 	var err error
@@ -410,7 +422,7 @@ func TransferDataFromVolume(volume VolumeInterface, transferPaths TransferPaths)
 	return out, nil
 }
 
-//AddParent2Json 填充父类元素，解决子元素全部为空情况
+// AddParent2Json 填充父类元素，解决子元素全部为空情况
 func AddParent2Json(s *string, tp TransferPath) error {
 	var err error
 	typeValueArr, _ := tp.Schema.MultiType()
@@ -466,33 +478,9 @@ func AddParent2Json(s *string, tp TransferPath) error {
 	return nil
 }
 
-//Add2json 数据转换(将go数据写入到json字符串中)
+// Add2json 数据转换(将go数据写入到json字符串中)
 func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 	var err error
-	var arr []interface{}
-	var ok bool
-	// if v == nil { // 值为nil也需要设置,需要保留数据key
-	// 	return nil
-	// }
-	if strings.Contains(dstPath, "#") {
-		arr, ok = v.([]interface{})
-		if !ok { // todo 此处只考虑了，从json字符串中提取数据，在设置到新的json字符串方式
-			err = errors.Errorf("Add2json func err , excepted array ,got %#v", v)
-			return err
-		}
-		if len(arr) == 0 {
-			return nil
-		}
-		for index, val := range arr {
-			path := strings.ReplaceAll(dstPath, "#", strconv.Itoa(index))
-			err = Add2json(s, path, dstType, val)
-			if err != nil {
-				err = errors.WithStack(err)
-				return err
-			}
-		}
-		return nil
-	}
 	var realV interface{}
 	realV = v //set default v with interface{} type
 	if dstType == "" {

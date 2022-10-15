@@ -192,9 +192,12 @@ func strval(v interface{}) string {
 		return v.Error()
 	case fmt.Stringer:
 		return v.String()
-	default:
-		return fmt.Sprintf("%v", v)
 	}
+	b, err := json.Marshal(v)
+	if err == nil {
+		return string(b)
+	}
+	return fmt.Sprintf("%v", v)
 }
 
 func JsonCompact(src string) (out string, err error) {

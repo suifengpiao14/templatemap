@@ -207,6 +207,10 @@ func convertType(dst interface{}, src interface{}) bool {
 		}
 		rv.SetBool(srcBool)
 		return true
+	case reflect.String:
+		rv.SetString(srcStr)
+		return true
+
 	}
 
 	err := errors.Errorf("can not convert %v(%s) to %#v", src, rTmp.Type().String(), rvT.String())

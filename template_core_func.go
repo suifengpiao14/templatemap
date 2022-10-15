@@ -1,7 +1,6 @@
 package templatemap
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -155,23 +154,12 @@ func GetSetValueNumber(volume VolumeInterface, setKey string, getKey string) str
 }
 
 func GetSetColumn2Row(volume VolumeInterface, key string) string {
-	var v interface{}
+	var v string
 	volume.GetValue(key, &v) // 多级key,返回的为map类型,无法转换为string
-	if v == nil {
+	if v == "" {
 		return ""
 	}
-	var str string
-	str, ok := v.(string)
-	if !ok {
-		b, err := json.Marshal(v)
-		if err != nil {
-			err = errors.WithMessage(err, "template_core_func.GetSetColumn2Row")
-			panic(err)
-		}
-		str = string(b)
-	}
-
-	out := util.Column2Row(str)
+	out := util.Column2Row(v)
 	volume.SetValue(key, out)
 	return ""
 }

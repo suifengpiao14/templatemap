@@ -513,6 +513,9 @@ func Add2json(s *string, dstPath string, dstType string, v interface{}) error {
 	//      return nil
 	// }
 	if strings.Contains(dstPath, "#") {
+		if v == nil {
+			return nil //数组的key无法确定,不设置
+		}
 		arr, ok = v.([]interface{})
 		if !ok { // todo 此处只考虑了，从json字符串中提取数据，在设置到新的json字符串方式（这个地方正好解决了多维数组转换问题）
 			err = errors.Errorf("Add2json func err , excepted array ,got %#v", v)

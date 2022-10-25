@@ -3,6 +3,8 @@ package util
 import (
 	"fmt"
 	"testing"
+
+	"github.com/xeipuuv/gojsonschema"
 )
 
 func TestColumn2Row(t *testing.T) {
@@ -25,4 +27,14 @@ func TestRow2Column(t *testing.T) {
 
 	out := Row2Column(jsonStr)
 	fmt.Println(out)
+}
+
+func TestValid(t *testing.T) {
+	input := `{"id":"1","price":"10"}`
+	schema := `{"$id":"input","required":["config"],"properties":{"config":{"properties":{"desc":{"type":"string","dst":"Fdesc"},"id":{"type":"string","format":"number","dst":"Fid"},"name":{"type":"string","dst":"Fname"},"os":{"type":"string","format":"number","dst":"Fos"},"price":{"type":"string","format":"number","dst":"Fprice"},"projectId":{"type":"string","format":"number","dst":"FprojectID"},"rewardKey":{"type":"string","dst":"FrewardKey"},"sortValue":{"type":"string","format":"number","dst":"FsortValue"},"valid":{"type":"string","format":"number","dst":"Fvalid"}},"type":"object","required":["desc","id","name","os","price","projectId","rewardKey","sortValue","valid"]}},"type":"object"}`
+	schemaLoader := gojsonschema.NewStringLoader(schema)
+	err := Validate(input, schemaLoader)
+	if err != nil {
+		panic(err)
+	}
 }

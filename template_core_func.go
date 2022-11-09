@@ -37,6 +37,7 @@ var CoreFuncMap = template.FuncMap{
 	"gjsonGet":                         gjson.Get,
 	"sjsonSet":                         sjson.Set,
 	"sjsonSetRaw":                      sjson.SetRaw,
+	"toJson":                           ToJson,
 	"transfer":                         Transfer,
 	"DBValidate":                       DBValidate,
 	"dbValidate":                       DBValidate,
@@ -362,6 +363,19 @@ func ExecSQLTpl(volume VolumeInterface, templateName string) string {
 	storeKey := fmt.Sprintf("%sOut", templateName)
 	volume.SetValue(storeKey, out)
 	return "" // 符合模板函数，至少一个输出结构
+}
+
+//ToJson 将值转为字符串
+func ToJson(volume volumeMap, key string) (err error) {
+	var value interface{}
+	volume.GetValue(key, &value)
+	b, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	str := string(b)
+	volume.SetValue(key, str)
+	return
 }
 
 func Transfer(volume volumeMap, dstSchema string) (interface{}, error) {

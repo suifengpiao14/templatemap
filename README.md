@@ -1,5 +1,11 @@
 # templatemap
+缺点：
+1. 数据转换
+2. 批量处理 无法胜任
+3. DB验证
 
+目前就sql生成ok
+考虑切换语言https://github.com/d5/tengo
 ## 业务架构图
 ```plantuml
 @startuml
